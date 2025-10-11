@@ -1,8 +1,16 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using MongoDB.Driver;
-using SajberSekjuriti.Data; 
+using SajberSekjuriti.Model; 
 using SajberSekjuriti.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Login";
+        options.AccessDeniedPath = "/AccessDenied";
+    });
 
 // Add services to the container.
 builder.Services.AddRazorPages();
@@ -10,8 +18,10 @@ builder.Services.AddRazorPages();
 // Konfiguracja MongoDB
 builder.Services.AddSingleton<IMongoClient>(s => new MongoClient(builder.Configuration["MongoDbSettings:ConnectionString"]));
 // Nasze serwisy
-builder.Services.AddScoped<UsersService>();
+builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<PasswordService>();
+builder.Services.AddScoped<PasswordPolicyService>();
+builder.Services.AddScoped<PasswordValidationService>();
 
 var app = builder.Build();
 
@@ -19,7 +29,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-    var usersService = services.GetRequiredService<UsersService>();
+    var usersService = services.GetRequiredService<UserService>();
     var passwordService = services.GetRequiredService<PasswordService>();
     var adminUser = await usersService.GetByUsernameAsync("ADMIN");
     if (adminUser == null)
@@ -50,6 +60,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseAuthorization();
 

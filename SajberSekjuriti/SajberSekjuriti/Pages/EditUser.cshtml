@@ -1,0 +1,40 @@
+﻿@page "{id}"
+@model SajberSekjuriti.Pages.EditUserModel
+@{
+    ViewData["Title"] = "Edytuj użytkownika";
+}
+
+<h1>@ViewData["Title"]</h1>
+<h4>Modyfikujesz konto: @Model.Input.Username</h4>
+<hr />
+
+<div class="row">
+    <div class="col-md-4">
+        <form method="post">
+            <input type="hidden" asp-for="Input.Id" />
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="form-floating mb-3">
+                <input asp-for="Input.Username" class="form-control" readonly />
+                <label asp-for="Input.Username"></label>
+            </div>
+            <div class="form-floating mb-3">
+                <input asp-for="Input.FullName" class="form-control" />
+                <label asp-for="Input.FullName"></label>
+                <span asp-validation-for="Input.FullName" class="text-danger"></span>
+            </div>
+
+            <div class="form-floating mb-3">
+                <select asp-for="Input.Role" asp-items="Html.GetEnumSelectList<SajberSekjuriti.Model.UserRole>()" class="form-control"></select>
+                <label asp-for="Input.Role"></label>
+            </div>
+            <div class="form-floating mb-3">
+                <input asp-for="Input.NewPassword" class="form-control" type="password" />
+                <label asp-for="Input.NewPassword"></label>
+            </div>
+
+            <button type="submit" class="w-100 btn btn-lg btn-primary">Zapisz zmiany</button>
+            <a asp-page="/AdminPanel" class="btn btn-secondary w-100 mt-2">Anuluj</a>
+        </form>
+    </div>
+</div>
