@@ -12,9 +12,9 @@ namespace SajberSekjuriti.Services
                 return null;
             }
 
-            if (password.Length < policy.MinimumLength)
+            if (password.Length < policy.MinimumLength.Value)
             {
-                return $"Hasło musi mieć co najmniej {policy.MinimumLength} znaków.";
+                return $"Hasło musi mieć co najmniej {policy.MinimumLength.Value} znaków.";
             }
             if (policy.RequireDigit && !Regex.IsMatch(password, @"\d"))
             {

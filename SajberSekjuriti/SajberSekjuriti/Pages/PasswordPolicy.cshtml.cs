@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SajberSekjuriti.Model;
 using SajberSekjuriti.Services;
+using System.ComponentModel.DataAnnotations;
 
 namespace SajberSekjuriti.Pages
 {
@@ -10,7 +11,7 @@ namespace SajberSekjuriti.Pages
     public class PasswordPolicyModel : PageModel
     {
         private readonly PasswordPolicyService _policyService;
-        private readonly ILogger<PasswordPolicyModel> _logger; // Dodajemy logger
+        private readonly ILogger<PasswordPolicyModel> _logger;
 
         public PasswordPolicyModel(PasswordPolicyService policyService, ILogger<PasswordPolicyModel> logger)
         {
@@ -18,38 +19,77 @@ namespace SajberSekjuriti.Pages
             _logger = logger;
         }
 
-        [BindProperty]
-        public PasswordPolicySettings Settings { get; set; } = new();
-
-        public async Task<IActionResult> OnGetAsync()
+        // Ten model bêdzie u¿ywany TYLKO do komunikacji z formularzem
+        public class InputModel
         {
-            _logger.LogInformation("Metoda OnGetAsync zosta³a wywo³ana.");
-            Settings = await _policyService.GetSettingsAsync();
-            return Page();
+            public string Id { get; set; } = string.Empty;
+            public bool IsEnabled { get; set; }
+            public bool RequireDigit { get; set; }
+            public bool RequireSpecialCharacter { get; set; }
+            public bool RequireUppercase { get; set; }
+
+            [Display(Name = "Minimalna d³ugoœæ has³a")]
+            public string? MinimumLength { get; set; }
+
+            [Display(Name = "Wa¿noœæ has³a (w dniach, 0 = wy³¹czone)")]
+            public string? PasswordExpirationDays { get; set; }
+        }
+
+        [BindProperty]
+        public InputModel Input { get; set; } = new();
+
+        public async Task OnGetAsync()
+        {
+            var settings = await _policyService.GetSettingsAsync();
+            // Konwertujemy dane z bazy na nasz model formularza
+            Input.Id = settings.Id;
+            Input.IsEnabled = settings.IsEnabled;
+            Input.RequireDigit = settings.RequireDigit;
+            Input.RequireSpecialCharacter = settings.RequireSpecialCharacter;
+            Input.RequireUppercase = settings.RequireUppercase;
+            Input.MinimumLength = settings.MinimumLength?.ToString();
+            Input.PasswordExpirationDays = settings.PasswordExpirationDays?.ToString();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            _logger.LogInformation("Metoda OnPostAsync zosta³a wywo³ana.");
+            int? minLength = null;
+            if (int.TryParse(Input.MinimumLength, out int parsedMinLength))
+            {
+                minLength = parsedMinLength;
+            }
+            else if (!string.IsNullOrEmpty(Input.MinimumLength))
+            {
+                ModelState.AddModelError("Input.MinimumLength", "Wartoœæ musi byæ poprawn¹ liczb¹.");
+            }
+
+            int? expirationDays = null;
+            if (int.TryParse(Input.PasswordExpirationDays, out int parsedExpirationDays))
+            {
+                expirationDays = parsedExpirationDays;
+            }
+            else if (!string.IsNullOrEmpty(Input.PasswordExpirationDays))
+            {
+                ModelState.AddModelError("Input.PasswordExpirationDays", "Wartoœæ musi byæ poprawn¹ liczb¹.");
+            }
+
             if (!ModelState.IsValid)
             {
-                _logger.LogWarning("ModelState jest nieprawid³owy.");
                 return Page();
             }
 
-            try
-            {
-                await _policyService.SaveSettingsAsync(Settings);
-                _logger.LogInformation("Zapis zakoñczony sukcesem. Przekierowujê na /AdminPanel.");
-                TempData["SuccessMessage"] = "Polityka hase³ zosta³a zaktualizowana.";
-                return RedirectToPage("/AdminPanel");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Wyst¹pi³ b³¹d w OnPostAsync podczas zapisu.");
-                ModelState.AddModelError(string.Empty, "Nie uda³o siê zapisaæ ustawieñ. SprawdŸ logi aplikacji.");
-                return Page();
-            }
+            var settingsToSave = await _policyService.GetSettingsAsync();
+            settingsToSave.Id = Input.Id;
+            settingsToSave.IsEnabled = Input.IsEnabled;
+            settingsToSave.RequireDigit = Input.RequireDigit;
+            settingsToSave.RequireSpecialCharacter = Input.RequireSpecialCharacter;
+            settingsToSave.RequireUppercase = Input.RequireUppercase;
+            settingsToSave.MinimumLength = minLength;
+            settingsToSave.PasswordExpirationDays = expirationDays;
+
+            await _policyService.SaveSettingsAsync(settingsToSave);
+            TempData["SuccessMessage"] = "Polityka hase³ zosta³a zaktualizowana.";
+            return RedirectToPage("/AdminPanel");
         }
     }
 }
