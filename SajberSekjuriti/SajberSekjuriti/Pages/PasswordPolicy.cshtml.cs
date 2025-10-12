@@ -41,7 +41,7 @@ namespace SajberSekjuriti.Pages
         public async Task OnGetAsync()
         {
             var settings = await _policyService.GetSettingsAsync();
-            // Konwertujemy dane z bazy na nasz model formularza
+            // Konwertujemy dane z bazy (int?) na nasz model formularza (string)
             Input.Id = settings.Id;
             Input.IsEnabled = settings.IsEnabled;
             Input.RequireDigit = settings.RequireDigit;
@@ -50,46 +50,61 @@ namespace SajberSekjuriti.Pages
             Input.MinimumLength = settings.MinimumLength?.ToString();
             Input.PasswordExpirationDays = settings.PasswordExpirationDays?.ToString();
         }
-
+        //PROBLEM JEST TUTAJ
         public async Task<IActionResult> OnPostAsync()
         {
+            _logger.LogInformation("Metoda OnPostAsync zosta³a wywo³ana.");
+
+            // Krok 1: Rêcznie zamieniamy tekst z formularza na liczby
             int? minLength = null;
-            if (int.TryParse(Input.MinimumLength, out int parsedMinLength))
+            if (!string.IsNullOrEmpty(Input.MinimumLength))
             {
-                minLength = parsedMinLength;
-            }
-            else if (!string.IsNullOrEmpty(Input.MinimumLength))
-            {
-                ModelState.AddModelError("Input.MinimumLength", "Wartoœæ musi byæ poprawn¹ liczb¹.");
+                if (int.TryParse(Input.MinimumLength, out int parsedMinLength) && parsedMinLength >= 0)
+                {
+                    minLength = parsedMinLength;
+                }
+                else
+                {
+                    ModelState.AddModelError("Input.MinimumLength", "Wartoœæ musi byæ poprawn¹, nieujemn¹ liczb¹.");
+                }
             }
 
             int? expirationDays = null;
-            if (int.TryParse(Input.PasswordExpirationDays, out int parsedExpirationDays))
+            if (!string.IsNullOrEmpty(Input.PasswordExpirationDays))
             {
-                expirationDays = parsedExpirationDays;
-            }
-            else if (!string.IsNullOrEmpty(Input.PasswordExpirationDays))
-            {
-                ModelState.AddModelError("Input.PasswordExpirationDays", "Wartoœæ musi byæ poprawn¹ liczb¹.");
+                if (int.TryParse(Input.PasswordExpirationDays, out int parsedExpirationDays) && parsedExpirationDays >= 0)
+                {
+                    expirationDays = parsedExpirationDays;
+                }
+                else
+                {
+                    ModelState.AddModelError("Input.PasswordExpirationDays", "Wartoœæ musi byæ poprawn¹, nieujemn¹ liczb¹.");
+                }
             }
 
+            // Krok 2: Sprawdzamy, czy nasza rêczna walidacja znalaz³a b³êdy
             if (!ModelState.IsValid)
             {
+                _logger.LogWarning("ModelState jest nieprawid³owy PO RÊCZNEJ WALIDACJI.");
                 return Page();
             }
 
+            // Krok 3: Zapisujemy dane do bazy
             var settingsToSave = await _policyService.GetSettingsAsync();
             settingsToSave.Id = Input.Id;
             settingsToSave.IsEnabled = Input.IsEnabled;
             settingsToSave.RequireDigit = Input.RequireDigit;
             settingsToSave.RequireSpecialCharacter = Input.RequireSpecialCharacter;
             settingsToSave.RequireUppercase = Input.RequireUppercase;
-            settingsToSave.MinimumLength = minLength;
-            settingsToSave.PasswordExpirationDays = expirationDays;
+            settingsToSave.MinimumLength = minLength; // Zapisujemy skonwertowan¹ liczbê (lub null)
+            settingsToSave.PasswordExpirationDays = expirationDays; // Zapisujemy skonwertowan¹ liczbê (lub null)
 
             await _policyService.SaveSettingsAsync(settingsToSave);
+
             TempData["SuccessMessage"] = "Polityka hase³ zosta³a zaktualizowana.";
             return RedirectToPage("/AdminPanel");
         }
+
+        //DO TAD JEST PROBLEM
     }
 }
