@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 using System.ComponentModel.DataAnnotations;
 namespace SajberSekjuriti.Model
 {
+    // Model reprezentujący użytkownika w systemie
     public class User
     {
         [BsonId]
@@ -20,5 +21,6 @@ namespace SajberSekjuriti.Model
         public int? PasswordExpirationDays { get; set; }
         public List<string> PasswordHistory { get; set; } = new List<string>();
     }
+    // Enum definiujący role użytkowników
     public enum UserRole { Admin, User }
 }

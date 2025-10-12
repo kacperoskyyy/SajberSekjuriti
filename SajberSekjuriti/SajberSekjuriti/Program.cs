@@ -17,7 +17,7 @@ builder.Services.AddRazorPages();
 
 // Konfiguracja MongoDB
 builder.Services.AddSingleton<IMongoClient>(s => new MongoClient(builder.Configuration["MongoDbSettings:ConnectionString"]));
-// Nasze serwisy
+// Wstrzykniecie serwisów 
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<PasswordService>();
 builder.Services.AddScoped<PasswordPolicyService>();
@@ -46,6 +46,30 @@ using (var scope = app.Services.CreateScope())
         await usersService.CreateAsync(newAdmin);
         Console.WriteLine("Stworzono konto admina.");
     }
+}
+
+// Tworzenie domyœlnych ustawieñ polityki hase³
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var ppService = services.GetRequiredService<PasswordPolicyService>();
+    var settings = await ppService.GetSettingsAsync();
+    if (settings == null)
+    {
+        var defaultSettings = new PasswordPolicySettings
+        {
+            Id = null,
+            IsEnabled = false,
+            RequireDigit = true,
+            RequireSpecialCharacter = true,
+            RequireUppercase = true,
+            MinimumLength = 8,
+            PasswordExpirationDays = 0
+        };
+    }
+    await ppService.SaveSettingsAsync(settings);
+    Console.WriteLine("Ustawienia polityki hase³ zosta³y utworzone.");
 }
 
 // Configure the HTTP request pipeline.

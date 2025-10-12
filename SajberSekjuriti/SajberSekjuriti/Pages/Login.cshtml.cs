@@ -17,6 +17,7 @@ public class LoginModel : PageModel
     private readonly PasswordService _passwordService;
     private readonly PasswordPolicyService _policyService;
 
+    //Konstruktor z wstrzykiwaniem zale¿noœci
     public LoginModel(UserService userService, PasswordService passwordService, PasswordPolicyService policyService)
     {
         _userService = userService;
@@ -29,6 +30,7 @@ public class LoginModel : PageModel
 
     public string? ErrorMessage { get; set; }
 
+    // Model do przechowywania danych wejœciowych
     public class InputModel
     {
         [Required(ErrorMessage = "Login jest wymagany")]
@@ -37,21 +39,22 @@ public class LoginModel : PageModel
         [Required(ErrorMessage = "Has³o jest wymagane")]
         public string Password { get; set; } = string.Empty;
     }
-
+    // Obs³uga ¿¹dania POST
     public async Task<IActionResult> OnPostAsync()
     {
+        // Walidacja modelu
         if (!ModelState.IsValid)
         {
             return Page();
         }
-
+        // Pobieranie u¿ytkownika z bazy danych
         var user = await _userService.GetByUsernameAsync(Input.Username);
         if (user == null || user.IsBlocked || !_passwordService.VerifyPassword(Input.Password, user.PasswordHash))
         {
             ErrorMessage = "Login lub has³o niepoprawne.";
             return Page();
         }
-
+        // Sprawdzanie polityki hase³
         var policy = await _policyService.GetSettingsAsync();
 
         // Najpierw bierzemy ustawienie indywidualne. Jeœli go nie ma, bierzemy globalne.
@@ -67,7 +70,7 @@ public class LoginModel : PageModel
                 await _userService.UpdateAsync(user);
             }
         }
-
+        // Tworzenie to¿samoœci u¿ytkownika
         var claims = new List<Claim>
     {
         new(ClaimTypes.Name, user.Username),
@@ -75,7 +78,7 @@ public class LoginModel : PageModel
     };
 
         var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-
+        // Logowanie u¿ytkownika
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(claimsIdentity));

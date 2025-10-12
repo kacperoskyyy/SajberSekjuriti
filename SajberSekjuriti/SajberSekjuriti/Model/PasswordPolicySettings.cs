@@ -4,11 +4,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SajberSekjuriti.Model
 {
+    // Model reprezentujący ustawienia polityki haseł
     public class PasswordPolicySettings
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; } = string.Empty;
+        public string? Id { get; set; } = string.Empty;
 
         [Display(Name = "Włącz własne reguły złożoności hasła")]
         public bool IsEnabled { get; set; } = false;

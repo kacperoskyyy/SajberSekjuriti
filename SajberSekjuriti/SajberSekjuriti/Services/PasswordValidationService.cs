@@ -3,8 +3,11 @@ using System.Text.RegularExpressions;
 
 namespace SajberSekjuriti.Services
 {
+    // Serwis do walidacji hasel zgodnie z polityka
     public class PasswordValidationService
     {
+        //Funkcja do sprawdzania hasla zgodnie z polityka
+        //Zwraca null jesli haslo jest poprawne
         public string? Validate(string password, PasswordPolicySettings policy)
         {
             if (!policy.IsEnabled)

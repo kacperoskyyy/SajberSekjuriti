@@ -14,7 +14,7 @@ namespace SajberSekjuriti.Pages
         private readonly PasswordService _passwordService;
         private readonly PasswordPolicyService _policyService;
         private readonly PasswordValidationService _validationService;
-
+        // Konstruktor klasy ChangePasswordModel z wstrzykiwaniem zale¿noœci
         public ChangePasswordModel(UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
         {
             _userService = userService;
@@ -22,7 +22,7 @@ namespace SajberSekjuriti.Pages
             _policyService = policyService;
             _validationService = validationService;
         }
-
+        // Model powi¹zany z formularzem zmiany has³a
         [BindProperty]
         public InputModel Input { get; set; } = new();
 
@@ -46,14 +46,15 @@ namespace SajberSekjuriti.Pages
             [Compare("NewPassword", ErrorMessage = "Has³a nie s¹ takie same.")]
             public string ConfirmPassword { get; set; } = string.Empty;
         }
-
+        // Obs³uga ¿¹dania POST do zmiany has³a
         public async Task<IActionResult> OnPostAsync()
         {
+            //Sprawdzenie poprawnoœci modelu
             if (!ModelState.IsValid)
             {
                 return Page();
             }
-
+            // Pobranie polityki hase³ i walidacja nowego has³a
             var policy = await _policyService.GetSettingsAsync();
             var validationError = _validationService.Validate(Input.NewPassword, policy);
             if (validationError != null)
@@ -61,19 +62,19 @@ namespace SajberSekjuriti.Pages
                 ModelState.AddModelError(string.Empty, validationError);
                 return Page();
             }
-
+            // Pobranie u¿ytkownika i zmiana has³a
             var username = User.Identity?.Name;
             if (username == null)
             {
                 return RedirectToPage("/Login");
             }
-
             var user = await _userService.GetByUsernameAsync(username);
             if (user == null || !_passwordService.VerifyPassword(Input.OldPassword, user.PasswordHash))
             {
                 ModelState.AddModelError("Input.OldPassword", "Stare has³o jest nieprawid³owe.");
                 return Page();
             }
+            // Sprawdzenie historii hase³
 
             foreach (var oldHash in user.PasswordHistory)
             {
@@ -83,19 +84,19 @@ namespace SajberSekjuriti.Pages
                     return Page();
                 }
             }
-
+            // Aktualizacja has³a i historii hase³
             user.PasswordHistory.Add(user.PasswordHash);
 
-
+            // Utrzymanie tylko ostatnich 5 hase³ w historii
             while (user.PasswordHistory.Count > 5)
             {
                 user.PasswordHistory.RemoveAt(0);
             }
-
+            // Ustawienie nowego has³a
             user.PasswordHash = _passwordService.HashPassword(Input.NewPassword);
             user.MustChangePassword = false;
             user.PasswordLastSet = DateTime.UtcNow;
-
+            // Zapisanie zmian w bazie danych
             await _userService.UpdateAsync(user);
 
             return RedirectToPage("/Index");

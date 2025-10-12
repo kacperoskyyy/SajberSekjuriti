@@ -14,6 +14,7 @@ namespace SajberSekjuriti.Pages
         private readonly PasswordPolicyService _policyService;
         private readonly PasswordValidationService _validationService;
 
+        //Konstruktor klasy RegisterModel, który inicjalizuje serwisy potrzebne do rejestracji u¿ytkownika.
         public RegisterModel(UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
         {
             _userService = userService;
@@ -24,7 +25,7 @@ namespace SajberSekjuriti.Pages
 
         [BindProperty]
         public InputModel Input { get; set; } = new();
-
+        //Definicja klasy InputModel, która zawiera w³aœciwoœci potrzebne do rejestracji u¿ytkownika.
         public class InputModel
         {
             [Required(ErrorMessage = "Login jest wymagany")]
@@ -46,13 +47,15 @@ namespace SajberSekjuriti.Pages
             [Compare("Password", ErrorMessage = "Has³a nie s¹ takie same.")]
             public string ConfirmPassword { get; set; } = string.Empty;
         }
-
+        //Metoda obs³uguj¹ca ¿¹dania POST do strony rejestracji.
         public async Task<IActionResult> OnPostAsync()
         {
+            //Sprawdzenie, czy dane wejœciowe s¹ poprawne.
             if (!ModelState.IsValid)
             {
                 return Page();
             }
+            //Pobranie polityki hase³ i walidacja has³a u¿ytkownika.
             var policy = await _policyService.GetSettingsAsync();
             var validationError = _validationService.Validate(Input.Password, policy);
             if (validationError != null)
@@ -60,6 +63,7 @@ namespace SajberSekjuriti.Pages
                 ModelState.AddModelError(string.Empty, validationError);
                 return Page();
             }
+            //Sprawdzenie, czy u¿ytkownik o podanym loginie ju¿ istnieje.
 
             var existingUser = await _userService.GetByUsernameAsync(Input.Username);
             if (existingUser != null)
@@ -67,7 +71,7 @@ namespace SajberSekjuriti.Pages
                 ModelState.AddModelError(string.Empty, "U¿ytkownik o takim loginie ju¿ istnieje.");
                 return Page();
             }
-
+            //Utworzenie nowego u¿ytkownika i zapisanie go w bazie danych.
             var newUser = new User
             {
                 Username = Input.Username,
@@ -76,7 +80,7 @@ namespace SajberSekjuriti.Pages
                 Role = UserRole.User,
                 PasswordLastSet = DateTime.UtcNow
             };
-
+            //Zapisanie nowego u¿ytkownika w bazie danych.
             await _userService.CreateAsync(newUser);
 
             TempData["SuccessMessage"] = "Konto zosta³o pomyœlnie utworzone! Mo¿esz siê teraz zalogowaæ.";

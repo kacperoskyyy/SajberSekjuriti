@@ -17,6 +17,7 @@ namespace SajberSekjuriti.Pages
         private readonly PasswordPolicyService _policyService;
         private readonly PasswordValidationService _validationService;
 
+        // Konstruktor klasy EditUserModel z wstrzykiwaniem zale¿noœci
         public EditUserModel(UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
         {
             _userService = userService;
@@ -28,6 +29,7 @@ namespace SajberSekjuriti.Pages
         [BindProperty]
         public InputModel Input { get; set; } = new();
 
+        // Klasa reprezentuj¹ca dane wejœciowe formularza
         public class InputModel
         {
             [Required]
@@ -51,6 +53,7 @@ namespace SajberSekjuriti.Pages
             public string? PasswordExpirationDays { get; set; }
         }
 
+        // Obs³uga ¿¹dania GET do za³adowania danych u¿ytkownika
         public async Task<IActionResult> OnGetAsync(string id)
         {
             var user = await _userService.GetByIdAsync(id);
@@ -69,9 +72,10 @@ namespace SajberSekjuriti.Pages
             return Page();
         }
 
+        // Obs³uga ¿¹dania POST do aktualizacji danych u¿ytkownika
         public async Task<IActionResult> OnPostAsync()
         {
-
+            // Walidacja indywidualnej wa¿noœci has³a
             int? expirationDays = null;
             if (int.TryParse(Input.PasswordExpirationDays, out int parsedDays))
             {
@@ -82,27 +86,27 @@ namespace SajberSekjuriti.Pages
                 ModelState.AddModelError("Input.PasswordExpirationDays", "Wartoœæ musi byæ poprawn¹ liczb¹.");
             }
 
-
+            // Sprawdzenie poprawnoœci modelu
             if (!ModelState.IsValid)
             {
                 return Page();
             }
-
+            // Pobranie u¿ytkownika z bazy danych
             var user = await _userService.GetByIdAsync(Input.Id);
             if (user == null)
             {
                 return NotFound();
             }
 
-
+            // Aktualizacja danych u¿ytkownika
             user.FullName = Input.FullName;
             user.Role = Input.Role;
             user.PasswordExpirationDays = expirationDays;
 
-
+            // Jeœli podano nowe has³o, przeprowadŸ walidacjê i aktualizacjê
             if (!string.IsNullOrEmpty(Input.NewPassword))
             {
-
+                // Pobranie polityki hase³ i walidacja nowego has³a
                 var policy = await _policyService.GetSettingsAsync();
                 var validationError = _validationService.Validate(Input.NewPassword, policy);
                 if (validationError != null)
@@ -110,7 +114,7 @@ namespace SajberSekjuriti.Pages
                     ModelState.AddModelError(string.Empty, validationError);
                     return Page();
                 }
-
+                // Sprawdzenie historii hase³
                 foreach (var oldHash in user.PasswordHistory)
                 {
                     if (_passwordService.VerifyPassword(Input.NewPassword, oldHash))
@@ -119,7 +123,7 @@ namespace SajberSekjuriti.Pages
                         return Page();
                     }
                 }
-
+                // Aktualizacja has³a i historii hase³
                 user.PasswordHistory.Add(user.PasswordHash);
                 while (user.PasswordHistory.Count > 5)
                 {
@@ -128,7 +132,7 @@ namespace SajberSekjuriti.Pages
                 user.PasswordHash = _passwordService.HashPassword(Input.NewPassword);
             }
 
-
+            // Zapisanie zmian w bazie danych
             await _userService.UpdateAsync(user);
 
             return RedirectToPage("/AdminPanel");

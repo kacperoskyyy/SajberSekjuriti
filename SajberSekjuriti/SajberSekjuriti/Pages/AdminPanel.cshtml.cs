@@ -17,11 +17,12 @@ namespace SajberSekjuriti.Pages
         }
 
         public List<User> Users { get; set; } = new();
-
+        // Metoda obs³uguj¹ca ¿¹danie GET do strony panelu administracyjnego, aby pobraæ wszystkich uzytkowników
         public async Task OnGetAsync()
         {
             Users = await _userService.GetAllAsync();
         }
+        // Metoda obs³uguj¹ca ¿¹danie POST do zablokowania u¿ytkownika
         public async Task<IActionResult> OnPostBlockAsync([FromForm] string id)
         {
             var user = await _userService.GetByIdAsync(id);
@@ -32,7 +33,7 @@ namespace SajberSekjuriti.Pages
             }
             return RedirectToPage();
         }
-
+        // Metoda obs³uguj¹ca ¿¹danie POST do odblokowania u¿ytkownika
         public async Task<IActionResult> OnPostUnblockAsync([FromForm] string id)
         {
             var user = await _userService.GetByIdAsync(id);
@@ -43,13 +44,13 @@ namespace SajberSekjuriti.Pages
             }
             return RedirectToPage();
         }
-
+        // Metoda obs³uguj¹ca ¿¹danie POST do usuniêcia u¿ytkownika
         public async Task<IActionResult> OnPostDeleteAsync([FromForm] string id)
         {
             await _userService.DeleteAsync(id);
             return RedirectToPage();
         }
-
+        // Metoda obs³uguj¹ca ¿¹danie POST do wymuszenia zmiany has³a przy nastêpnym logowaniu
         public async Task<IActionResult> OnPostForcePasswordChangeAsync([FromForm] string id)
         {
             var user = await _userService.GetByIdAsync(id);

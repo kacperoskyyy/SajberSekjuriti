@@ -25,7 +25,7 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-page="/Privacy">Privacy</a>
                         </li>
-
+                        <!-- Pojawianie się panelu admina jeśli jest się adminem -->
                         @if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Admin"))
                         {
                             <li class="nav-item">
@@ -33,6 +33,10 @@
                             </li>
                         }
                     </ul>
+                    <!-- 
+                        Sprawdzanie czy jest sie zalogowanym jesli tak to wyswietlenie nazwy uzytkownika i wylogowania
+                            jesli nie to wyswietlenie opcji zalogowania
+                    -->
                     <ul class="navbar-nav">
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {

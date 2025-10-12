@@ -19,10 +19,9 @@ namespace SajberSekjuriti.Pages
             _logger = logger;
         }
 
-        // Ten model bêdzie u¿ywany TYLKO do komunikacji z formularzem
         public class InputModel
         {
-            public string Id { get; set; } = string.Empty;
+            public string? Id { get; set; }
             public bool IsEnabled { get; set; }
             public bool RequireDigit { get; set; }
             public bool RequireSpecialCharacter { get; set; }

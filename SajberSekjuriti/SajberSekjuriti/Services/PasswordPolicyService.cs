@@ -3,11 +3,13 @@ using SajberSekjuriti.Model;
 
 namespace SajberSekjuriti.Services
 {
+    // Serwis do zarządzania ustawieniami polityki haseł w MongoDB
     public class PasswordPolicyService
     {
         private readonly IMongoCollection<PasswordPolicySettings> _settingsCollection;
         private readonly ILogger<PasswordPolicyService> _logger;
 
+        // Konstruktor inicjalizujący połączenie z MongoDB i ustawienia logowania
         public PasswordPolicyService(IMongoClient client, IConfiguration config, ILogger<PasswordPolicyService> logger)
         {
             _logger = logger;
@@ -17,7 +19,7 @@ namespace SajberSekjuriti.Services
             _settingsCollection = database.GetCollection<PasswordPolicySettings>(collectionName);
             _logger.LogInformation("PasswordPolicyService zainicjalizowany.");
         }
-
+        // Pobiera ustawienia polityki haseł z bazy danych
         public async Task<PasswordPolicySettings> GetSettingsAsync()
         {
             _logger.LogInformation("Pobieram ustawienia polityki haseł...");
@@ -30,7 +32,7 @@ namespace SajberSekjuriti.Services
             _logger.LogInformation("Znaleziono ustawienia w bazie. ID: {SettingsId}", settings.Id);
             return settings;
         }
-
+        // Zapisuje lub aktualizuje ustawienia polityki haseł w bazie danych
         public async Task SaveSettingsAsync(PasswordPolicySettings settings)
         {
             try

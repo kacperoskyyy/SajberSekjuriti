@@ -14,7 +14,7 @@ namespace SajberSekjuriti.Pages
         private readonly PasswordService _passwordService;
         private readonly PasswordPolicyService _policyService;
         private readonly PasswordValidationService _validationService;
-
+        //Konstruktor klasy UserChangePasswordModel, który inicjalizuje serwisy potrzebne do zmiany has³a u¿ytkownika.
         public UserChangePasswordModel(UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
         {
             _userService = userService;
@@ -25,7 +25,7 @@ namespace SajberSekjuriti.Pages
 
         [BindProperty]
         public InputModel Input { get; set; } = new();
-
+        //Definicja klasy InputModel, która zawiera w³aœciwoœci potrzebne do zmiany has³a u¿ytkownika.
         public class InputModel
         {
             [Required(ErrorMessage = "Stare has³o jest wymagane")]
@@ -43,20 +43,21 @@ namespace SajberSekjuriti.Pages
             [Compare("NewPassword", ErrorMessage = "Has³a nie s¹ takie same.")]
             public string ConfirmPassword { get; set; } = string.Empty;
         }
-
+        //Metoda obs³uguj¹ca ¿¹dania POST do strony zmiany has³a.
         public async Task<IActionResult> OnPostAsync()
         {
+            //Sprawdzenie, czy dane wejœciowe s¹ poprawne.
             if (!ModelState.IsValid)
             {
                 return Page();
             }
-
+            //Pobranie nazwy u¿ytkownika z kontekstu i sprawdzenie, czy u¿ytkownik jest zalogowany.
             var username = User.Identity?.Name;
             if (string.IsNullOrEmpty(username))
             {
                 return RedirectToPage("/Login");
             }
-
+            //Pobranie polityki hase³ i walidacja nowego has³a u¿ytkownika.
             var policy = await _policyService.GetSettingsAsync();
             var validationError = _validationService.Validate(Input.NewPassword, policy);
             if (validationError != null)
@@ -64,7 +65,7 @@ namespace SajberSekjuriti.Pages
                 ModelState.AddModelError(string.Empty, validationError);
                 return Page();
             }
-
+            //Pobranie u¿ytkownika z bazy danych i sprawdzenie, czy stare has³o jest poprawne.
             var user = await _userService.GetByUsernameAsync(username);
             if (user == null || !_passwordService.VerifyPassword(Input.OldPassword, user.PasswordHash))
             {
@@ -72,7 +73,7 @@ namespace SajberSekjuriti.Pages
                 return Page();
             }
 
-            //SPRAWDZANIE HISTORII HAS£a
+            //SPRAWDZANIE HISTORII HAS£A
             foreach (var oldHash in user.PasswordHistory)
             {
                 if (_passwordService.VerifyPassword(Input.NewPassword, oldHash))
@@ -87,7 +88,7 @@ namespace SajberSekjuriti.Pages
             {
                 user.PasswordHistory.RemoveAt(0);
             }
-
+            //Aktualizacja has³a u¿ytkownika i zapisanie zmian w bazie danych.
             user.PasswordHash = _passwordService.HashPassword(Input.NewPassword);
             user.PasswordLastSet = DateTime.UtcNow;
             user.MustChangePassword = false;

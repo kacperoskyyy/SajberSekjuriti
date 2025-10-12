@@ -12,13 +12,13 @@ namespace SajberSekjuriti.Pages
     {
         private readonly UserService _userService;
         private readonly PasswordService _passwordService;
-
+        // Konstruktor klasy dodaj¹cy serwisy UserService i PasswordService
         public AddUserModel(UserService userService, PasswordService passwordService)
         {
             _userService = userService;
             _passwordService = passwordService;
         }
-
+        // Model powi¹zany z formularzem dodawania u¿ytkownika
         [BindProperty]
         public InputModel Input { get; set; } = new();
 
@@ -40,7 +40,7 @@ namespace SajberSekjuriti.Pages
             [Display(Name = "Rola")]
             public UserRole Role { get; set; }
         }
-
+        // Metoda obs³uguj¹ca ¿¹danie POST z formularza dodawania u¿ytkownika
         public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid)
