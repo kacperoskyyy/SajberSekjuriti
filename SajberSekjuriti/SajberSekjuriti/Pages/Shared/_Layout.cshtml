@@ -39,6 +39,10 @@
                             <li class="nav-item">
                                 <span class="navbar-text text-dark me-3">Witaj, @User.Identity.Name!</span>
                             </li>
+
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-page="/UserChangePassword">Zmień hasło</a>
+                            </li>
                             <li class="nav-item">
                                 <form class="form-inline" asp-page="/Logout" method="post">
                                     <button type="submit" class="nav-link btn btn-link text-dark">Wyloguj</button>

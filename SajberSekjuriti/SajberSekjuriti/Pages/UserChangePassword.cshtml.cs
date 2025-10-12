@@ -1,21 +1,21 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using SajberSekjuriti.Services;
+using SajberSekjuriti.Model;
 using SajberSekjuriti.Services;
 using System.ComponentModel.DataAnnotations;
 
 namespace SajberSekjuriti.Pages
 {
     [Authorize]
-    public class ChangePasswordModel : PageModel
+    public class UserChangePasswordModel : PageModel
     {
         private readonly UserService _userService;
         private readonly PasswordService _passwordService;
         private readonly PasswordPolicyService _policyService;
         private readonly PasswordValidationService _validationService;
 
-        public ChangePasswordModel(UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
+        public UserChangePasswordModel(UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
         {
             _userService = userService;
             _passwordService = passwordService;
@@ -26,8 +26,6 @@ namespace SajberSekjuriti.Pages
         [BindProperty]
         public InputModel Input { get; set; } = new();
 
-        public string? ErrorMessage { get; set; }
-
         public class InputModel
         {
             [Required(ErrorMessage = "Stare has³o jest wymagane")]
@@ -36,7 +34,6 @@ namespace SajberSekjuriti.Pages
             public string OldPassword { get; set; } = string.Empty;
 
             [Required(ErrorMessage = "Nowe has³o jest wymagane")]
-            [StringLength(100, ErrorMessage = "Has³o musi mieæ co najmniej 6 znaków.", MinimumLength = 6)]
             [DataType(DataType.Password)]
             [Display(Name = "Nowe has³o")]
             public string NewPassword { get; set; } = string.Empty;
@@ -54,18 +51,18 @@ namespace SajberSekjuriti.Pages
                 return Page();
             }
 
+            var username = User.Identity?.Name;
+            if (string.IsNullOrEmpty(username))
+            {
+                return RedirectToPage("/Login");
+            }
+
             var policy = await _policyService.GetSettingsAsync();
             var validationError = _validationService.Validate(Input.NewPassword, policy);
             if (validationError != null)
             {
                 ModelState.AddModelError(string.Empty, validationError);
                 return Page();
-            }
-
-            var username = User.Identity?.Name;
-            if (username == null)
-            {
-                return RedirectToPage("/Login");
             }
 
             var user = await _userService.GetByUsernameAsync(username);
@@ -75,6 +72,7 @@ namespace SajberSekjuriti.Pages
                 return Page();
             }
 
+            //SPRAWDZANIE HISTORII HAS£a
             foreach (var oldHash in user.PasswordHistory)
             {
                 if (_passwordService.VerifyPassword(Input.NewPassword, oldHash))
@@ -83,9 +81,7 @@ namespace SajberSekjuriti.Pages
                     return Page();
                 }
             }
-
             user.PasswordHistory.Add(user.PasswordHash);
-
 
             while (user.PasswordHistory.Count > 5)
             {
@@ -93,11 +89,12 @@ namespace SajberSekjuriti.Pages
             }
 
             user.PasswordHash = _passwordService.HashPassword(Input.NewPassword);
-            user.MustChangePassword = false;
             user.PasswordLastSet = DateTime.UtcNow;
+            user.MustChangePassword = false;
 
             await _userService.UpdateAsync(user);
 
+            TempData["SuccessMessage"] = "Has³o zosta³o pomyœlnie zmienione.";
             return RedirectToPage("/Index");
         }
     }

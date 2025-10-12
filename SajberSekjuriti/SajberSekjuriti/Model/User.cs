@@ -1,5 +1,6 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using System.ComponentModel.DataAnnotations;
 namespace SajberSekjuriti.Model
 {
     public class User
@@ -15,6 +16,9 @@ namespace SajberSekjuriti.Model
         public bool IsBlocked { get; set; } = false;
         public DateTime? PasswordLastSet { get; set; }
         public bool MustChangePassword { get; set; } = false;
+        [Display(Name = "Indywidualna ważność hasła (w dniach, puste = globalna)")]
+        public int? PasswordExpirationDays { get; set; }
+        public List<string> PasswordHistory { get; set; } = new List<string>();
     }
     public enum UserRole { Admin, User }
 }

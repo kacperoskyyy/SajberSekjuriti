@@ -53,20 +53,26 @@ public class LoginModel : PageModel
         }
 
         var policy = await _policyService.GetSettingsAsync();
-        if (policy.PasswordExpirationDays > 0 && user.PasswordLastSet.HasValue)
+
+        // Najpierw bierzemy ustawienie indywidualne. Jeœli go nie ma, bierzemy globalne.
+        int? expirationDays = user.PasswordExpirationDays ?? policy.PasswordExpirationDays;
+
+        if (expirationDays.HasValue && expirationDays > 0 && user.PasswordLastSet.HasValue)
         {
-            if (DateTime.UtcNow > user.PasswordLastSet.Value.AddDays(policy.PasswordExpirationDays.Value))
+            // U¿ywamy .Value, bo jesteœmy pewni, ¿e wartoœæ istnieje
+            if (DateTime.UtcNow > user.PasswordLastSet.Value.AddDays(expirationDays.Value))
             {
+                // Has³o wygas³o! Zmuszamy do zmiany.
                 user.MustChangePassword = true;
                 await _userService.UpdateAsync(user);
             }
         }
 
         var claims = new List<Claim>
-        {
-            new(ClaimTypes.Name, user.Username),
-            new(ClaimTypes.Role, user.Role.ToString())
-        };
+    {
+        new(ClaimTypes.Name, user.Username),
+        new(ClaimTypes.Role, user.Role.ToString())
+    };
 
         var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 

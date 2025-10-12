@@ -32,7 +32,11 @@
                 <input asp-for="Input.NewPassword" class="form-control" type="password" />
                 <label asp-for="Input.NewPassword"></label>
             </div>
-
+            <div class="form-floating mb-3">
+                <input asp-for="Input.PasswordExpirationDays" class="form-control" />
+                <label asp-for="Input.PasswordExpirationDays"></label>
+                <span asp-validation-for="Input.PasswordExpirationDays" class="text-danger"></span>
+            </div>
             <button type="submit" class="w-100 btn btn-lg btn-primary">Zapisz zmiany</button>
             <a asp-page="/AdminPanel" class="btn btn-secondary w-100 mt-2">Anuluj</a>
         </form>
