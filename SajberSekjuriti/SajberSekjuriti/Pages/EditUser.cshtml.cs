@@ -50,7 +50,7 @@ namespace SajberSekjuriti.Pages
             [DataType(DataType.Password)]
             public string? NewPassword { get; set; }
             [Display(Name = "Indywidualna wa¿noœæ has³a (w dniach, puste = globalna)")]
-            public string? PasswordExpirationDays { get; set; }
+            public int? PasswordExpirationDays { get; set; }
         }
 
         // Obs³uga ¿¹dania GET do za³adowania danych u¿ytkownika
@@ -67,7 +67,8 @@ namespace SajberSekjuriti.Pages
                 Id = user.Id,
                 Username = user.Username,
                 FullName = user.FullName,
-                Role = user.Role
+                Role = user.Role,
+                PasswordExpirationDays = user.PasswordExpirationDays
             };
             return Page();
         }
@@ -77,11 +78,12 @@ namespace SajberSekjuriti.Pages
         {
             // Walidacja indywidualnej wa¿noœci has³a
             int? expirationDays = null;
-            if (int.TryParse(Input.PasswordExpirationDays, out int parsedDays))
+            if (int.TryParse(Input.PasswordExpirationDays.ToString(), out int parsedDays))
             {
                 expirationDays = parsedDays;
+                //Console.WriteLine($"parsed: {parsedDays}, expirationDays: {expirationDays}");
             }
-            else if (!string.IsNullOrEmpty(Input.PasswordExpirationDays))
+            else if (!string.IsNullOrEmpty(Input.PasswordExpirationDays.ToString()))
             {
                 ModelState.AddModelError("Input.PasswordExpirationDays", "Wartoœæ musi byæ poprawn¹ liczb¹.");
             }
