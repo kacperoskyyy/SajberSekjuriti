@@ -10,10 +10,12 @@ namespace SajberSekjuriti.Pages
     public class AdminPanelModel : PageModel
     {
         private readonly UserService _userService;
+        private readonly AuditLogService _auditLogService;
 
-        public AdminPanelModel(UserService userService)
+        public AdminPanelModel(UserService userService, AuditLogService auditLogService)
         {
             _userService = userService;
+            _auditLogService = auditLogService;
         }
 
         public List<User> Users { get; set; } = new();
@@ -30,6 +32,7 @@ namespace SajberSekjuriti.Pages
             {
                 user.IsBlocked = true;
                 await _userService.UpdateAsync(user);
+                await _auditLogService.LogAsync(User.Identity.Name, "Zarz¹dzanie", $"Zablokowano u¿ytkownika {user.Username}.");
             }
             return RedirectToPage();
         }
@@ -41,6 +44,7 @@ namespace SajberSekjuriti.Pages
             {
                 user.IsBlocked = false;
                 await _userService.UpdateAsync(user);
+                await _auditLogService.LogAsync(User.Identity.Name, "Zarz¹dzanie", $"Odblokowano u¿ytkownika {user.Username}.");
             }
             return RedirectToPage();
         }
@@ -48,6 +52,7 @@ namespace SajberSekjuriti.Pages
         public async Task<IActionResult> OnPostDeleteAsync([FromForm] string id)
         {
             await _userService.DeleteAsync(id);
+            await _auditLogService.LogAsync(User.Identity.Name, "Zarz¹dzanie", $"Usuniêto u¿ytkownika (ID: {id}).");
             return RedirectToPage();
         }
         // Metoda obs³uguj¹ca ¿¹danie POST do wymuszenia zmiany has³a przy nastêpnym logowaniu

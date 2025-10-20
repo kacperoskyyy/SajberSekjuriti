@@ -14,13 +14,15 @@ namespace SajberSekjuriti.Pages
         private readonly PasswordService _passwordService;
         private readonly PasswordPolicyService _policyService;
         private readonly PasswordValidationService _validationService;
+        private readonly AuditLogService _auditLogService;
         // Konstruktor klasy ChangePasswordModel z wstrzykiwaniem zale¿noœci
-        public ChangePasswordModel(UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
+        public ChangePasswordModel(AuditLogService auditLogService,UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
         {
             _userService = userService;
             _passwordService = passwordService;
             _policyService = policyService;
             _validationService = validationService;
+            _auditLogService = auditLogService;
         }
         // Model powi¹zany z formularzem zmiany has³a
         [BindProperty]
@@ -98,6 +100,7 @@ namespace SajberSekjuriti.Pages
             user.PasswordLastSet = DateTime.UtcNow;
             // Zapisanie zmian w bazie danych
             await _userService.UpdateAsync(user);
+            await _auditLogService.LogAsync(username, "Zmiana has³a", "U¿ytkownik zosta³ zmuszony do zmiany has³a.");
 
             return RedirectToPage("/Index");
         }

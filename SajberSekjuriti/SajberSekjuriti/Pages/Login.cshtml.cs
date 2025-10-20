@@ -16,13 +16,15 @@ public class LoginModel : PageModel
     private readonly UserService _userService;
     private readonly PasswordService _passwordService;
     private readonly PasswordPolicyService _policyService;
+    private readonly AuditLogService _auditLogService;
 
     //Konstruktor z wstrzykiwaniem zale¿noœci
-    public LoginModel(UserService userService, PasswordService passwordService, PasswordPolicyService policyService)
+    public LoginModel(AuditLogService auditLogService, UserService userService, PasswordService passwordService, PasswordPolicyService policyService)
     {
         _userService = userService;
         _passwordService = passwordService;
         _policyService = policyService;
+        _auditLogService = auditLogService;
     }
 
     [BindProperty]
@@ -42,35 +44,87 @@ public class LoginModel : PageModel
     // Obs³uga ¿¹dania POST
     public async Task<IActionResult> OnPostAsync()
     {
-        // Walidacja modelu
         if (!ModelState.IsValid)
         {
             return Page();
         }
-        // Pobieranie u¿ytkownika z bazy danych
+
+        // Pobieramy politykê bezpieczeñstwa OD RAZU
+        var policy = await _policyService.GetSettingsAsync();
+        var maxAttempts = policy.MaxLoginAttempts ?? 0;
+        var lockoutMinutes = policy.LockoutDurationMinutes ?? 15; // Domyœlnie 15 min, jak w wymaganiach
+
         var user = await _userService.GetByUsernameAsync(Input.Username);
-        if (user == null || user.IsBlocked || !_passwordService.VerifyPassword(Input.Password, user.PasswordHash))
+
+        // --- NOWA LOGIKA BLOKADY - Krok 1: SprawdŸ, czy user w ogóle istnieje lub jest zablokowany przez admina
+        if (user == null || user.IsBlocked)
         {
+            await _auditLogService.LogAsync(Input.Username, "B³êdne logowanie", "Nieudana próba logowania (u¿ytkownik nie istnieje lub zablokowany).");
             ErrorMessage = "Login lub has³o niepoprawne.";
             return Page();
         }
-        // Sprawdzanie polityki hase³
-        var policy = await _policyService.GetSettingsAsync();
 
-        // Najpierw bierzemy ustawienie indywidualne. Jeœli go nie ma, bierzemy globalne.
-        int? expirationDays = user.PasswordExpirationDays ?? policy.PasswordExpirationDays;
-
-        if (expirationDays.HasValue && expirationDays > 0 && user.PasswordLastSet.HasValue)
+        // --- NOWA LOGIKA BLOKADY - Krok 2: SprawdŸ, czy konto jest zablokowane czasowo
+        if (user.LockoutEndDate.HasValue && user.LockoutEndDate > DateTime.UtcNow)
         {
-            // U¿ywamy .Value, bo jesteœmy pewni, ¿e wartoœæ istnieje
-            if (DateTime.UtcNow > user.PasswordLastSet.Value.AddDays(expirationDays.Value))
+            var remainingTime = user.LockoutEndDate.Value - DateTime.UtcNow;
+            ErrorMessage = $"BLOKADA: Konto zablokowane. Spróbuj ponownie za {remainingTime.Minutes} min {remainingTime.Seconds} sek.";
+            await _auditLogService.LogAsync(Input.Username, "B³êdne logowanie", "Nieudana próba logowania (konto czasowo zablokowane).");
+            return Page();
+        }
+
+        // --- Krok 3: SprawdŸ has³o
+        if (!_passwordService.VerifyPassword(Input.Password, user.PasswordHash))
+        {
+            // Has³o jest B£ÊDNE. Czas w³¹czyæ licznik.
+            await _auditLogService.LogAsync(Input.Username, "B³êdne logowanie", "Nieudana próba logowania (niepoprawne has³o).");
+
+            if (maxAttempts > 0) // Sprawdzamy, czy polityka blokad jest w³¹czona
             {
-                // Has³o wygas³o! Zmuszamy do zmiany.
-                user.MustChangePassword = true;
+                user.FailedLoginAttempts++;
+                if (user.FailedLoginAttempts >= maxAttempts)
+                {
+                    // U¿ytkownik przekroczy³ limit! Blokujemy konto.
+                    user.LockoutEndDate = DateTime.UtcNow.AddMinutes(lockoutMinutes);
+                    user.FailedLoginAttempts = 0; // Resetujemy licznik na nastêpn¹ blokadê
+                    ErrorMessage = $"BLOKADA: Wprowadzono niepoprawne dane {maxAttempts} razy. Konto zablokowane na {lockoutMinutes} minut.";
+                }
+                else
+                {
+                    ErrorMessage = $"Login lub has³o niepoprawne. Pozosta³o prób: {maxAttempts - user.FailedLoginAttempts}";
+                }
                 await _userService.UpdateAsync(user);
             }
+            else
+            {
+                ErrorMessage = "Login lub has³o niepoprawne.";
+            }
+
+            return Page();
         }
-        // Tworzenie to¿samoœci u¿ytkownika
+
+        // --- Has³o jest POPRAWNE ---
+
+        // Resetujemy licznik b³êdów i blokadê
+        user.FailedLoginAttempts = 0;
+        user.LockoutEndDate = null;
+
+        await _auditLogService.LogAsync(user.Username, "Logowanie", "U¿ytkownik zalogowa³ siê pomyœlnie.");
+
+        // Sprawdzamy wa¿noœæ has³a (ten kod ju¿ mieliœmy)
+        int? expirationDays = user.PasswordExpirationDays ?? policy.PasswordExpirationDays;
+        if (expirationDays.HasValue && expirationDays > 0 && user.PasswordLastSet.HasValue)
+        {
+            if (DateTime.UtcNow > user.PasswordLastSet.Value.AddDays(expirationDays.Value))
+            {
+                user.MustChangePassword = true;
+            }
+        }
+
+        // Zapisujemy reset licznika ORAZ ewentualn¹ flagê zmiany has³a
+        await _userService.UpdateAsync(user);
+
+        // --- Reszta logiki logowania (tworzenie ciasteczka) ---
         var claims = new List<Claim>
     {
         new(ClaimTypes.Name, user.Username),
@@ -78,17 +132,16 @@ public class LoginModel : PageModel
     };
 
         var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        // Logowanie u¿ytkownika
+
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(claimsIdentity));
 
-        // Sprawdzamy, czy u¿ytkownik musi zmieniæ has³o
         if (user.MustChangePassword)
         {
             return RedirectToPage("/ChangePassword");
         }
 
-        return RedirectToPage("/Index"); // Przekierowanie na stronê g³ówn¹
+        return RedirectToPage("/Index");
     }
 }

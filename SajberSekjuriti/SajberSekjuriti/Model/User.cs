@@ -20,7 +20,9 @@ namespace SajberSekjuriti.Model
         [Display(Name = "Indywidualna ważność hasła (w dniach, puste = globalna)")]
         public int? PasswordExpirationDays { get; set; }
         public List<string> PasswordHistory { get; set; } = new List<string>();
+        public int FailedLoginAttempts { get; set; } = 0;
+        public DateTime? LockoutEndDate { get; set; }
     }
     // Enum definiujący role użytkowników
-    public enum UserRole { Admin, User }
+    public enum UserRole { Admin, SuperUser, User }
 }

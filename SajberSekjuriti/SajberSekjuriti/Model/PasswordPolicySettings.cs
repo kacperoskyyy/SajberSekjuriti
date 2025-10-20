@@ -28,5 +28,16 @@ namespace SajberSekjuriti.Model
 
         [Display(Name = "Ważność hasła (w dniach, 0 = wyłączone)")]
         public int? PasswordExpirationDays { get; set; } = 0;
+        [Display(Name = "Włącz zapisywanie logów aktywności")]
+        public bool EnableAuditLog { get; set; } = true;
+
+        [Display(Name = "Limit błędnych logowań (0 = wyłączone)")]
+        public int? MaxLoginAttempts { get; set; } = 5;
+
+        [Display(Name = "Czas blokady konta (w minutach)")]
+        public int? LockoutDurationMinutes { get; set; } = 15;
+
+        [Display(Name = "Czas sesji użytkownika (w minutach, 0 = bez limitu)")]
+        public int? SessionTimeoutMinutes { get; set; } = 10;
     }
 }
