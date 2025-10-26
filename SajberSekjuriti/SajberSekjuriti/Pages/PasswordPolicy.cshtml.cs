@@ -32,6 +32,17 @@ namespace SajberSekjuriti.Pages
 
             [Display(Name = "Wa¿noœæ has³a (w dniach, 0 = wy³¹czone)")]
             public string? PasswordExpirationDays { get; set; }
+
+            public bool EnableAuditLog { get; set; }
+
+            [Display(Name = "Limit b³êdnych logowañ (0 = wy³¹czone)")]
+            public string? MaxLoginAttempts { get; set; }
+
+            [Display(Name = "Czas blokady konta (w minutach)")]
+            public string? LockoutDurationMinutes { get; set; }
+
+            [Display(Name = "Czas sesji u¿ytkownika (w minutach, 0 = bez limitu)")]
+            public string? SessionTimeoutMinutes { get; set; }
         }
 
         [BindProperty]
@@ -48,8 +59,11 @@ namespace SajberSekjuriti.Pages
             Input.RequireUppercase = settings.RequireUppercase;
             Input.MinimumLength = settings.MinimumLength?.ToString();
             Input.PasswordExpirationDays = settings.PasswordExpirationDays?.ToString();
+            Input.EnableAuditLog = settings.EnableAuditLog;
+            Input.MaxLoginAttempts = settings.MaxLoginAttempts?.ToString();
+            Input.LockoutDurationMinutes = settings.LockoutDurationMinutes?.ToString();
+            Input.SessionTimeoutMinutes = settings.SessionTimeoutMinutes?.ToString();
         }
-        //PROBLEM JEST TUTAJ
         public async Task<IActionResult> OnPostAsync()
         {
             _logger.LogInformation("Metoda OnPostAsync zosta³a wywo³ana.");
@@ -81,6 +95,36 @@ namespace SajberSekjuriti.Pages
                 }
             }
 
+            int? maxAttempts = null;
+            if (int.TryParse(Input.MaxLoginAttempts, out int parsedAttempts) && parsedAttempts >= 0)
+            {
+                maxAttempts = parsedAttempts;
+            }
+            else if (!string.IsNullOrEmpty(Input.MaxLoginAttempts))
+            {
+                ModelState.AddModelError("Input.MaxLoginAttempts", "Wartoœæ musi byæ poprawn¹, nieujemn¹ liczb¹.");
+            }
+
+            int? lockoutMinutes = null;
+            if (int.TryParse(Input.LockoutDurationMinutes, out int parsedLockout) && parsedLockout >= 0)
+            {
+                lockoutMinutes = parsedLockout;
+            }
+            else if (!string.IsNullOrEmpty(Input.LockoutDurationMinutes))
+            {
+                ModelState.AddModelError("Input.LockoutDurationMinutes", "Wartoœæ musi byæ poprawn¹, nieujemn¹ liczb¹.");
+            }
+
+            int? sessionMinutes = null;
+            if (int.TryParse(Input.SessionTimeoutMinutes, out int parsedSession) && parsedSession >= 0)
+            {
+                sessionMinutes = parsedSession;
+            }
+            else if (!string.IsNullOrEmpty(Input.SessionTimeoutMinutes))
+            {
+                ModelState.AddModelError("Input.SessionTimeoutMinutes", "Wartoœæ musi byæ poprawn¹, nieujemn¹ liczb¹.");
+            }
+
             // Krok 2: Sprawdzamy, czy nasza rêczna walidacja znalaz³a b³êdy
             if (!ModelState.IsValid)
             {
@@ -95,8 +139,12 @@ namespace SajberSekjuriti.Pages
             settingsToSave.RequireDigit = Input.RequireDigit;
             settingsToSave.RequireSpecialCharacter = Input.RequireSpecialCharacter;
             settingsToSave.RequireUppercase = Input.RequireUppercase;
-            settingsToSave.MinimumLength = minLength; // Zapisujemy skonwertowan¹ liczbê (lub null)
-            settingsToSave.PasswordExpirationDays = expirationDays; // Zapisujemy skonwertowan¹ liczbê (lub null)
+            settingsToSave.MinimumLength = minLength;
+            settingsToSave.PasswordExpirationDays = expirationDays;
+            settingsToSave.EnableAuditLog = Input.EnableAuditLog;
+            settingsToSave.MaxLoginAttempts = maxAttempts;
+            settingsToSave.LockoutDurationMinutes = lockoutMinutes;
+            settingsToSave.SessionTimeoutMinutes = sessionMinutes;
 
             await _policyService.SaveSettingsAsync(settingsToSave);
 
@@ -104,6 +152,6 @@ namespace SajberSekjuriti.Pages
             return RedirectToPage("/AdminPanel");
         }
 
-        //DO TAD JEST PROBLEM
+
     }
 }

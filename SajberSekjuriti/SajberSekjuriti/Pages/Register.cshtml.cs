@@ -13,14 +13,16 @@ namespace SajberSekjuriti.Pages
         private readonly PasswordService _passwordService;
         private readonly PasswordPolicyService _policyService;
         private readonly PasswordValidationService _validationService;
+        private readonly AuditLogService _auditLogService;
 
         //Konstruktor klasy RegisterModel, który inicjalizuje serwisy potrzebne do rejestracji u¿ytkownika.
-        public RegisterModel(UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
+        public RegisterModel(AuditLogService auditLogService ,UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
         {
             _userService = userService;
             _passwordService = passwordService;
             _policyService = policyService;
             _validationService = validationService;
+            _auditLogService = auditLogService;
         }
 
         [BindProperty]
@@ -82,6 +84,7 @@ namespace SajberSekjuriti.Pages
             };
             //Zapisanie nowego u¿ytkownika w bazie danych.
             await _userService.CreateAsync(newUser);
+            await _auditLogService.LogAsync(newUser.Username, "Rejestracja", "Utworzono nowe konto u¿ytkownika.");
 
             TempData["SuccessMessage"] = "Konto zosta³o pomyœlnie utworzone! Mo¿esz siê teraz zalogowaæ.";
 

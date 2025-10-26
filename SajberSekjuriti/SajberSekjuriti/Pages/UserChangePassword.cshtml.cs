@@ -14,13 +14,15 @@ namespace SajberSekjuriti.Pages
         private readonly PasswordService _passwordService;
         private readonly PasswordPolicyService _policyService;
         private readonly PasswordValidationService _validationService;
+        private readonly AuditLogService _auditLogService;
         //Konstruktor klasy UserChangePasswordModel, który inicjalizuje serwisy potrzebne do zmiany has³a u¿ytkownika.
-        public UserChangePasswordModel(UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
+        public UserChangePasswordModel(AuditLogService auditLogService ,UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
         {
             _userService = userService;
             _passwordService = passwordService;
             _policyService = policyService;
             _validationService = validationService;
+            _auditLogService = auditLogService;
         }
 
         [BindProperty]
@@ -94,6 +96,7 @@ namespace SajberSekjuriti.Pages
             user.MustChangePassword = false;
 
             await _userService.UpdateAsync(user);
+            await _auditLogService.LogAsync(username, "Zmiana has³a", "U¿ytkownik samodzielnie zmieni³ has³o.");
 
             TempData["SuccessMessage"] = "Has³o zosta³o pomyœlnie zmienione.";
             return RedirectToPage("/Index");

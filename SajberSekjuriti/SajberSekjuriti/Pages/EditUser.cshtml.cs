@@ -16,14 +16,16 @@ namespace SajberSekjuriti.Pages
         private readonly PasswordService _passwordService;
         private readonly PasswordPolicyService _policyService;
         private readonly PasswordValidationService _validationService;
+        private readonly AuditLogService _auditLogService;
 
         // Konstruktor klasy EditUserModel z wstrzykiwaniem zale¿noœci
-        public EditUserModel(UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
+        public EditUserModel(AuditLogService auditLogService ,UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
         {
             _userService = userService;
             _passwordService = passwordService;
             _policyService = policyService;
             _validationService = validationService;
+            _auditLogService = auditLogService;
         }
 
         [BindProperty]
@@ -136,6 +138,7 @@ namespace SajberSekjuriti.Pages
 
             // Zapisanie zmian w bazie danych
             await _userService.UpdateAsync(user);
+            await _auditLogService.LogAsync(User.Identity.Name, "Zarz¹dzanie", $"Admin zaktualizowa³ profil u¿ytkownika {user.Username}.");
 
             return RedirectToPage("/AdminPanel");
         }

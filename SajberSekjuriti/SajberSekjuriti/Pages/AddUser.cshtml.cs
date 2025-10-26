@@ -12,11 +12,13 @@ namespace SajberSekjuriti.Pages
     {
         private readonly UserService _userService;
         private readonly PasswordService _passwordService;
+        private readonly AuditLogService _auditLogService;
         // Konstruktor klasy dodaj¹cy serwisy UserService i PasswordService
-        public AddUserModel(UserService userService, PasswordService passwordService)
+        public AddUserModel(UserService userService, PasswordService passwordService, AuditLogService auditLogService)
         {
             _userService = userService;
             _passwordService = passwordService;
+            _auditLogService = auditLogService;
         }
         // Model powi¹zany z formularzem dodawania u¿ytkownika
         [BindProperty]
@@ -65,6 +67,7 @@ namespace SajberSekjuriti.Pages
             };
 
             await _userService.CreateAsync(newUser);
+            await _auditLogService.LogAsync(User.Identity.Name, "Zarz¹dzanie", $"Admin doda³ nowego u¿ytkownika {newUser.Username}.");
 
             return RedirectToPage("/AdminPanel");
         }
