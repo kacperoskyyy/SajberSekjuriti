@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using MongoDB.Driver.Linq;
 using SajberSekjuriti.Model;
 using SajberSekjuriti.Services;
-using SajberSekjuriti.Services;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 
@@ -41,6 +40,7 @@ public class LoginModel : PageModel
         [Required(ErrorMessage = "Has³o jest wymagane")]
         public string Password { get; set; } = string.Empty;
     }
+
     // Obs³uga ¿¹dania POST
     public async Task<IActionResult> OnPostAsync()
     {
@@ -52,11 +52,11 @@ public class LoginModel : PageModel
         // Pobieramy politykê bezpieczeñstwa OD RAZU
         var policy = await _policyService.GetSettingsAsync();
         var maxAttempts = policy.MaxLoginAttempts ?? 0;
-        var lockoutMinutes = policy.LockoutDurationMinutes ?? 15; // Domyœlnie 15 min, jak w wymaganiach
+        var lockoutMinutes = policy.LockoutDurationMinutes ?? 15; // Domyœlnie 15 min
 
         var user = await _userService.GetByUsernameAsync(Input.Username);
 
-        // --- NOWA LOGIKA BLOKADY - Krok 1: SprawdŸ, czy user w ogóle istnieje lub jest zablokowany przez admina
+        // --- Krok 1: SprawdŸ, czy user w ogóle istnieje lub jest zablokowany przez admina
         if (user == null || user.IsBlocked)
         {
             await _auditLogService.LogAsync(Input.Username, "B³êdne logowanie", "Nieudana próba logowania (u¿ytkownik nie istnieje lub zablokowany).");
@@ -64,7 +64,7 @@ public class LoginModel : PageModel
             return Page();
         }
 
-        // --- NOWA LOGIKA BLOKADY - Krok 2: SprawdŸ, czy konto jest zablokowane czasowo
+        // --- Krok 2: SprawdŸ, czy konto jest zablokowane czasowo
         if (user.LockoutEndDate.HasValue && user.LockoutEndDate > DateTime.UtcNow)
         {
             var remainingTime = user.LockoutEndDate.Value - DateTime.UtcNow;
@@ -109,9 +109,7 @@ public class LoginModel : PageModel
         user.FailedLoginAttempts = 0;
         user.LockoutEndDate = null;
 
-        await _auditLogService.LogAsync(user.Username, "Logowanie", "U¿ytkownik zalogowa³ siê pomyœlnie.");
-
-        // Sprawdzamy wa¿noœæ has³a (ten kod ju¿ mieliœmy)
+        // Sprawdzamy wa¿noœæ has³a
         int? expirationDays = user.PasswordExpirationDays ?? policy.PasswordExpirationDays;
         if (expirationDays.HasValue && expirationDays > 0 && user.PasswordLastSet.HasValue)
         {
@@ -121,15 +119,30 @@ public class LoginModel : PageModel
             }
         }
 
-        // Zapisujemy reset licznika ORAZ ewentualn¹ flagê zmiany has³a
         await _userService.UpdateAsync(user);
 
-        // --- Reszta logiki logowania (tworzenie ciasteczka) ---
+
+
+        if (user.IsOneTimePasswordEnabled)
+        {
+
+            await _auditLogService.LogAsync(user.Username, "Logowanie OTP", "Etap 1/2: Has³o poprawne. Przekierowanie do has³a jednorazowego.");
+
+
+            TempData["OTPUsername"] = user.Username;
+
+            // Przekierowujemy na stronê wprowadzania OTP.
+            return RedirectToPage("/LoginOTP");
+        }
+
+        await _auditLogService.LogAsync(user.Username, "Logowanie", "U¿ytkownik zalogowa³ siê pomyœlnie (bez OTP).");
+
+        // --- Standardowa logika tworzenia ciasteczka ---
         var claims = new List<Claim>
-    {
-        new(ClaimTypes.Name, user.Username),
-        new(ClaimTypes.Role, user.Role.ToString())
-    };
+        {
+            new(ClaimTypes.Name, user.Username),
+            new(ClaimTypes.Role, user.Role.ToString())
+        };
 
         var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
