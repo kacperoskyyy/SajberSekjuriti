@@ -16,6 +16,7 @@ public class LoginModel : PageModel
     private readonly PasswordService _passwordService;
     private readonly PasswordPolicyService _policyService;
     private readonly AuditLogService _auditLogService;
+    private static readonly Random _random = new Random();
 
     public LoginModel(AuditLogService auditLogService, UserService userService, PasswordService passwordService, PasswordPolicyService policyService)
     {
@@ -30,6 +31,9 @@ public class LoginModel : PageModel
 
     public string? ErrorMessage { get; set; }
 
+    // W³aœciwoœæ do wyœwietlenia kodu CAPTCHA w widoku
+    public string CaptchaCode { get; set; }
+
     public class InputModel
     {
         [Required(ErrorMessage = "Login jest wymagany")]
@@ -37,6 +41,10 @@ public class LoginModel : PageModel
 
         [Required(ErrorMessage = "Has³o jest wymagane")]
         public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Kod CAPTCHA jest wymagany")]
+        [Display(Name = "Przepisz kod w odwrotnej kolejnoœci")]
+        public string CaptchaInput { get; set; } = string.Empty;
     }
 
     public void OnGet()
@@ -45,12 +53,25 @@ public class LoginModel : PageModel
         {
             ErrorMessage = TempData["OTPError"].ToString();
         }
+        GenerateNewCaptcha();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
+        var correctCaptcha = TempData["CorrectCaptcha"]?.ToString();
+
+        if (string.IsNullOrEmpty(correctCaptcha) || Input.CaptchaInput != correctCaptcha)
+        {
+            await _auditLogService.LogAsync(Input.Username, "B³êdne logowanie", "Nieudana próba logowania (niepoprawna CAPTCHA).");
+            ErrorMessage = "Niepoprawny kod CAPTCHA.";
+            GenerateNewCaptcha();
+            return Page();
+        }
+
+
         if (!ModelState.IsValid)
         {
+            GenerateNewCaptcha();
             return Page();
         }
 
@@ -64,6 +85,7 @@ public class LoginModel : PageModel
         {
             await _auditLogService.LogAsync(Input.Username, "B³êdne logowanie", "Nieudana próba logowania (u¿ytkownik nie istnieje lub zablokowany).");
             ErrorMessage = "Login lub has³o niepoprawne.";
+            GenerateNewCaptcha();
             return Page();
         }
 
@@ -72,6 +94,7 @@ public class LoginModel : PageModel
             var remainingTime = user.LockoutEndDate.Value - DateTime.UtcNow;
             ErrorMessage = $"BLOKADA: Konto zablokowane. Spróbuj ponownie za {remainingTime.Minutes} min {remainingTime.Seconds} sek.";
             await _auditLogService.LogAsync(Input.Username, "B³êdne logowanie", "Nieudana próba logowania (konto czasowo zablokowane).");
+            GenerateNewCaptcha();
             return Page();
         }
 
@@ -99,6 +122,7 @@ public class LoginModel : PageModel
                 ErrorMessage = "Login lub has³o niepoprawne.";
             }
 
+            GenerateNewCaptcha();
             return Page();
         }
 
@@ -119,9 +143,7 @@ public class LoginModel : PageModel
         if (user.IsOneTimePasswordEnabled)
         {
             await _auditLogService.LogAsync(user.Username, "Logowanie OTP", "Etap 1/2: Has³o poprawne. Przekierowanie do has³a jednorazowego.");
-
             TempData["OTPUsername"] = user.Username;
-
             return RedirectToPage("/LoginOTP");
         }
 
@@ -145,5 +167,17 @@ public class LoginModel : PageModel
         }
 
         return RedirectToPage("/Index");
+    }
+
+    private void GenerateNewCaptcha()
+    {
+        const string chars = "ABCDEFGHIJKLMNPQRSTUVWXYZ123456789";
+        var randomString = new string(Enumerable.Repeat(chars, 6)
+            .Select(s => s[_random.Next(s.Length)]).ToArray());
+
+        CaptchaCode = randomString;
+
+        var reversed = new string(randomString.Reverse().ToArray());
+        TempData["CorrectCaptcha"] = reversed;
     }
 }

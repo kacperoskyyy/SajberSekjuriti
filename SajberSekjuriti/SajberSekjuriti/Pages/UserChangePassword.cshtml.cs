@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using SajberSekjuriti.Model;
 using SajberSekjuriti.Services;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.Extensions.Configuration; // <-- Dodane
+using System.Threading.Tasks; // <-- Dodane
 
 namespace SajberSekjuriti.Pages
 {
@@ -15,18 +17,40 @@ namespace SajberSekjuriti.Pages
         private readonly PasswordPolicyService _policyService;
         private readonly PasswordValidationService _validationService;
         private readonly AuditLogService _auditLogService;
+
+        // --- DODANE SERWISY ---
+        private readonly ReCaptchaService _reCaptchaService;
+        private readonly IConfiguration _configuration;
+
         //Konstruktor klasy UserChangePasswordModel, który inicjalizuje serwisy potrzebne do zmiany has³a u¿ytkownika.
-        public UserChangePasswordModel(AuditLogService auditLogService ,UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
+        public UserChangePasswordModel(
+            AuditLogService auditLogService,
+            UserService userService,
+            PasswordService passwordService,
+            PasswordPolicyService policyService,
+            PasswordValidationService validationService,
+            ReCaptchaService reCaptchaService, // <-- Dodane
+            IConfiguration configuration) // <-- Dodane
         {
             _userService = userService;
             _passwordService = passwordService;
             _policyService = policyService;
             _validationService = validationService;
             _auditLogService = auditLogService;
+            _reCaptchaService = reCaptchaService; // <-- Dodane
+            _configuration = configuration; // <-- Dodane
         }
 
         [BindProperty]
         public InputModel Input { get; set; } = new();
+
+        // --- DODANA W£AŒCIWOŒÆ ---
+        // Do przekazania klucza publicznego do widoku .cshtml
+        public string ReCaptchaSiteKey => _configuration["ReCaptchaSettings:SiteKey"];
+
+        // Dodajemy, aby wyœwietlaæ b³êdy reCaptcha
+        public string? ErrorMessage { get; set; }
+
         //Definicja klasy InputModel, która zawiera w³aœciwoœci potrzebne do zmiany has³a u¿ytkownika.
         public class InputModel
         {
@@ -45,9 +69,22 @@ namespace SajberSekjuriti.Pages
             [Compare("NewPassword", ErrorMessage = "Has³a nie s¹ takie same.")]
             public string ConfirmPassword { get; set; } = string.Empty;
         }
+
         //Metoda obs³uguj¹ca ¿¹dania POST do strony zmiany has³a.
         public async Task<IActionResult> OnPostAsync()
         {
+            // --- KROK 1: Weryfikacja Google reCaptcha ---
+            var reCaptchaToken = Request.Form["g-recaptcha-response"];
+            var isReCaptchaValid = await _reCaptchaService.ValidateAsync(reCaptchaToken);
+
+            if (!isReCaptchaValid)
+            {
+                ErrorMessage = "Weryfikacja CAPTCHA nie powiod³a siê. Spróbuj ponownie.";
+                return Page();
+            }
+
+            // --- KROK 2: Twoja dotychczasowa logika ---
+
             //Sprawdzenie, czy dane wejœciowe s¹ poprawne.
             if (!ModelState.IsValid)
             {

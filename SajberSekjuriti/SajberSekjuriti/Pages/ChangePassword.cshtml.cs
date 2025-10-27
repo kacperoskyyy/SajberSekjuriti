@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using SajberSekjuriti.Services;
+using SajberSekjuriti.Model;
 using SajberSekjuriti.Services;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.Extensions.Configuration;
+using System.Threading.Tasks;
 
 namespace SajberSekjuriti.Pages
 {
@@ -15,20 +17,33 @@ namespace SajberSekjuriti.Pages
         private readonly PasswordPolicyService _policyService;
         private readonly PasswordValidationService _validationService;
         private readonly AuditLogService _auditLogService;
-        // Konstruktor klasy ChangePasswordModel z wstrzykiwaniem zale¿noœci
-        public ChangePasswordModel(AuditLogService auditLogService,UserService userService, PasswordService passwordService, PasswordPolicyService policyService, PasswordValidationService validationService)
+        private readonly ReCaptchaService _reCaptchaService;
+        private readonly IConfiguration _configuration;
+
+        public ChangePasswordModel(
+            AuditLogService auditLogService,
+            UserService userService,
+            PasswordService passwordService,
+            PasswordPolicyService policyService,
+            PasswordValidationService validationService,
+            ReCaptchaService reCaptchaService,
+            IConfiguration configuration)
         {
             _userService = userService;
             _passwordService = passwordService;
             _policyService = policyService;
             _validationService = validationService;
             _auditLogService = auditLogService;
+            _reCaptchaService = reCaptchaService;
+            _configuration = configuration;
         }
-        // Model powi¹zany z formularzem zmiany has³a
+
         [BindProperty]
         public InputModel Input { get; set; } = new();
 
         public string? ErrorMessage { get; set; }
+
+        public IConfiguration Configuration => _configuration;
 
         public class InputModel
         {
@@ -48,15 +63,27 @@ namespace SajberSekjuriti.Pages
             [Compare("NewPassword", ErrorMessage = "Has³a nie s¹ takie same.")]
             public string ConfirmPassword { get; set; } = string.Empty;
         }
-        // Obs³uga ¿¹dania POST do zmiany has³a
+
+        public void OnGet()
+        {
+        }
+
         public async Task<IActionResult> OnPostAsync()
         {
-            //Sprawdzenie poprawnoœci modelu
+            var reCaptchaToken = Request.Form["g-recaptcha-response"];
+            var isReCaptchaValid = await _reCaptchaService.ValidateAsync(reCaptchaToken);
+
+            if (!isReCaptchaValid)
+            {
+                ErrorMessage = "Weryfikacja CAPTCHA nie powiod³a siê. Spróbuj ponownie.";
+                return Page();
+            }
+
             if (!ModelState.IsValid)
             {
                 return Page();
             }
-            // Pobranie polityki hase³ i walidacja nowego has³a
+
             var policy = await _policyService.GetSettingsAsync();
             var validationError = _validationService.Validate(Input.NewPassword, policy);
             if (validationError != null)
@@ -64,7 +91,7 @@ namespace SajberSekjuriti.Pages
                 ModelState.AddModelError(string.Empty, validationError);
                 return Page();
             }
-            // Pobranie u¿ytkownika i zmiana has³a
+
             var username = User.Identity?.Name;
             if (username == null)
             {
@@ -76,7 +103,6 @@ namespace SajberSekjuriti.Pages
                 ModelState.AddModelError("Input.OldPassword", "Stare has³o jest nieprawid³owe.");
                 return Page();
             }
-            // Sprawdzenie historii hase³
 
             foreach (var oldHash in user.PasswordHistory)
             {
@@ -86,19 +112,18 @@ namespace SajberSekjuriti.Pages
                     return Page();
                 }
             }
-            // Aktualizacja has³a i historii hase³
+
             user.PasswordHistory.Add(user.PasswordHash);
 
-            // Utrzymanie tylko ostatnich 5 hase³ w historii
             while (user.PasswordHistory.Count > 5)
             {
                 user.PasswordHistory.RemoveAt(0);
             }
-            // Ustawienie nowego has³a
+
             user.PasswordHash = _passwordService.HashPassword(Input.NewPassword);
             user.MustChangePassword = false;
             user.PasswordLastSet = DateTime.UtcNow;
-            // Zapisanie zmian w bazie danych
+
             await _userService.UpdateAsync(user);
             await _auditLogService.LogAsync(username, "Zmiana has³a", "U¿ytkownik zosta³ zmuszony do zmiany has³a.");
 
