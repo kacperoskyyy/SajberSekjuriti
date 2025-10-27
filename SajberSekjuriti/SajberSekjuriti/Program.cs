@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Mvc.ViewFeatures; // Potrzebne do TempData
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using SajberSekjuriti.Model;
@@ -62,22 +62,18 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
                 }
             },
 
-            // --- NOWA LOGIKA: Uruchamiana przy wylogowaniu przez timeout ---
             OnRedirectToLogin = context =>
             {
-                // 1. Pobieramy dostêp do TempData
                 var tempDataFactory = context.HttpContext.RequestServices.GetRequiredService<ITempDataDictionaryFactory>();
                 var tempData = tempDataFactory.GetTempData(context.HttpContext);
+                var _auditLogService = context.HttpContext.RequestServices.GetRequiredService<AuditLogService>();
 
-                // 2. Czyœcimy wszystkie stare komunikaty
                 tempData.Clear();
 
-                // 3. Ustawiamy nowy, poprawny komunikat
-                // U¿ywamy klucza "OTPError", aby Login.cshtml.cs go przechwyci³
                 tempData["OTPError"] = "Sesja wygas³a. Proszê zalogowaæ siê ponownie.";
 
-                // 4. Kontynuujemy przekierowanie
                 context.Response.Redirect(context.RedirectUri);
+                _auditLogService.LogAsync("Nieznany", "Wygaœniêcie sesji", "Sesja u¿ytkownika wygas³a podczas logowania OTP.").Wait();
                 return Task.CompletedTask;
             }
         };

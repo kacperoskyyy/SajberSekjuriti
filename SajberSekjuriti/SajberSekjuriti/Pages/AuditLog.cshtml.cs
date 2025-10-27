@@ -14,12 +14,10 @@ namespace SajberSekjuriti.Pages
     {
         private readonly AuditLogService _auditLogService;
 
-        // --- Ustawiamy rozmiar strony ---
         private const int PageSize = 100;
 
         public IEnumerable<AuditLog> Logs { get; set; } = new List<AuditLog>();
 
-        // --- W³aœciwoœci filtrowania (z poprzedniej wersji) ---
         [BindProperty(SupportsGet = true)]
         public string? SearchUsername { get; set; }
         [BindProperty(SupportsGet = true)]
@@ -31,9 +29,8 @@ namespace SajberSekjuriti.Pages
 
         public SelectList ActionTypes { get; set; }
 
-        // --- NOWE W³aœciwoœci dla paginacji ---
         [BindProperty(SupportsGet = true)]
-        public int CurrentPage { get; set; } = 1; // Domyœlnie strona 1
+        public int CurrentPage { get; set; } = 1;
         public int TotalPages { get; set; }
         public int TotalItems { get; set; }
 
@@ -44,10 +41,6 @@ namespace SajberSekjuriti.Pages
 
         public async Task OnGetAsync()
         {
-            // --- UWAGA DOT. WYDAJNOŒCI (Nadal aktualna!) ---
-            // Ten kod nadal pobiera WSZYSTKIE logi z bazy, a potem filtruje.
-            // Przy du¿ej iloœci danych, filtry i paginacja powinny
-            // byæ realizowane po stronie bazy danych, a nie w pamiêci.
             var allLogs = await _auditLogService.GetAllLogsAsync();
 
             var distinctActions = allLogs
@@ -57,7 +50,6 @@ namespace SajberSekjuriti.Pages
                 .ToList();
             ActionTypes = new SelectList(distinctActions);
 
-            // --- Logika filtrowania (bez zmian) ---
             IEnumerable<AuditLog> filteredLogs = allLogs;
 
             if (!string.IsNullOrEmpty(SearchUsername))
