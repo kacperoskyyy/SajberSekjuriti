@@ -68,6 +68,20 @@
                             <input type="hidden" name="id" value="@user.Id" />
                             <button type="submit" class="btn btn-sm btn-info ms-2">Wymuś zmianę hasła</button>
                         </form>
+                        @if (user.IsOneTimePasswordEnabled)
+                        {
+                            <form method="post" asp-page-handler="DisableOTP">
+                                <input type="hidden" name="id" value="@user.Id" />
+                                <button type="submit" class="btn btn-sm btn-success">OTP Disable</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form method="post" asp-page-handler="EnableOTP">
+                                <input type="hidden" name="id" value="@user.Id" />
+                                <button type="submit" class="btn btn-sm btn-warning">OTP Enable</button>
+                            </form>
+                        }
 
                     </div>
                 </td>

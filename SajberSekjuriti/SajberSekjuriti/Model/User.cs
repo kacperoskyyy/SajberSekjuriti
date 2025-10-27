@@ -22,6 +22,7 @@ namespace SajberSekjuriti.Model
         public List<string> PasswordHistory { get; set; } = new List<string>();
         public int FailedLoginAttempts { get; set; } = 0;
         public DateTime? LockoutEndDate { get; set; }
+        public bool IsOneTimePasswordEnabled { get; set; } = false;
     }
     // Enum definiujący role użytkowników
     public enum UserRole { Admin, SuperUser, User }

@@ -66,5 +66,40 @@ namespace SajberSekjuriti.Pages
             }
             return RedirectToPage();
         }
+
+        public async Task<IActionResult> OnPostEnableOTPAsync(string id)
+        {
+            // 1. ZnajdŸ u¿ytkownika
+            var user = await _userService.GetByIdAsync(id);
+
+            if (user != null)
+            {
+                // 2. Zmieñ flagê
+                user.IsOneTimePasswordEnabled = true;
+
+                // 3. Zapisz zmiany w bazie
+                await _userService.UpdateAsync(user);
+
+                // 4. Zapisz log
+                await _auditLogService.LogAsync(User.Identity.Name, "W³¹czono OTP", $"Admin w³¹czy³ OTP dla u¿ytkownika {user.Username}.");
+            }
+
+            // 5. Wróæ na tê sam¹ stronê
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostDisableOTPAsync(string id)
+        {
+            var user = await _userService.GetByIdAsync(id);
+
+            if (user != null)
+            {
+                user.IsOneTimePasswordEnabled = false;
+                await _userService.UpdateAsync(user);
+                await _auditLogService.LogAsync(User.Identity.Name, "Wy³¹czono OTP", $"Admin wy³¹czy³ OTP dla u¿ytkownika {user.Username}.");
+            }
+
+            return RedirectToPage();
+        }
     }
 }
