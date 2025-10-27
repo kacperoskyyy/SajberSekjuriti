@@ -5,71 +5,67 @@ using SajberSekjuriti.Model;
 using SajberSekjuriti.Services;
 using System.ComponentModel.DataAnnotations;
 
-namespace SajberSekjuriti.Pages
+namespace SajberSekjuriti.Pages;
+
+[Authorize(Roles = "Admin")]
+public class AddUserModel : PageModel
 {
-    [Authorize(Roles = "Admin")]
-    public class AddUserModel : PageModel
+    private readonly UserService _userService;
+    private readonly PasswordService _passwordService;
+    private readonly AuditLogService _auditLogService;
+    public AddUserModel(UserService userService, PasswordService passwordService, AuditLogService auditLogService)
     {
-        private readonly UserService _userService;
-        private readonly PasswordService _passwordService;
-        private readonly AuditLogService _auditLogService;
-        // Konstruktor klasy dodaj¹cy serwisy UserService i PasswordService
-        public AddUserModel(UserService userService, PasswordService passwordService, AuditLogService auditLogService)
+        _userService = userService;
+        _passwordService = passwordService;
+        _auditLogService = auditLogService;
+    }
+    [BindProperty]
+    public InputModel Input { get; set; } = new();
+
+    public class InputModel
+    {
+        [Required(ErrorMessage = "Login jest wymagany")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Pe³na nazwa jest wymagana")]
+        [Display(Name = "Pe³na nazwa")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Has³o jest wymagane")]
+        [StringLength(100, ErrorMessage = "Has³o musi mieæ co najmniej 6 znaków.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Has³o")]
+        public string Password { get; set; } = string.Empty;
+        [Required]
+        [Display(Name = "Rola")]
+        public UserRole Role { get; set; }
+    }
+    public async Task<IActionResult> OnPostAsync()
+    {
+        if (!ModelState.IsValid)
         {
-            _userService = userService;
-            _passwordService = passwordService;
-            _auditLogService = auditLogService;
+            return Page();
         }
-        // Model powi¹zany z formularzem dodawania u¿ytkownika
-        [BindProperty]
-        public InputModel Input { get; set; } = new();
 
-        public class InputModel
+        var existingUser = await _userService.GetByUsernameAsync(Input.Username);
+        if (existingUser != null)
         {
-            [Required(ErrorMessage = "Login jest wymagany")]
-            public string Username { get; set; } = string.Empty;
-
-            [Required(ErrorMessage = "Pe³na nazwa jest wymagana")]
-            [Display(Name = "Pe³na nazwa")]
-            public string FullName { get; set; } = string.Empty;
-
-            [Required(ErrorMessage = "Has³o jest wymagane")]
-            [StringLength(100, ErrorMessage = "Has³o musi mieæ co najmniej 6 znaków.", MinimumLength = 6)]
-            [DataType(DataType.Password)]
-            [Display(Name = "Has³o")]
-            public string Password { get; set; } = string.Empty;
-            [Required]
-            [Display(Name = "Rola")]
-            public UserRole Role { get; set; }
+            ModelState.AddModelError(string.Empty, "U¿ytkownik o takim loginie ju¿ istnieje.");
+            return Page();
         }
-        // Metoda obs³uguj¹ca ¿¹danie POST z formularza dodawania u¿ytkownika
-        public async Task<IActionResult> OnPostAsync()
+
+        var newUser = new User
         {
-            if (!ModelState.IsValid)
-            {
-                return Page();
-            }
+            Username = Input.Username,
+            FullName = Input.FullName,
+            PasswordHash = _passwordService.HashPassword(Input.Password),
+            Role = Input.Role,
+            PasswordLastSet = DateTime.UtcNow
+        };
 
-            var existingUser = await _userService.GetByUsernameAsync(Input.Username);
-            if (existingUser != null)
-            {
-                ModelState.AddModelError(string.Empty, "U¿ytkownik o takim loginie ju¿ istnieje.");
-                return Page();
-            }
+        await _userService.CreateAsync(newUser);
+        await _auditLogService.LogAsync(User.Identity.Name, "Zarz¹dzanie", $"Admin doda³ nowego u¿ytkownika {newUser.Username}.");
 
-            var newUser = new User
-            {
-                Username = Input.Username,
-                FullName = Input.FullName,
-                PasswordHash = _passwordService.HashPassword(Input.Password),
-                Role = Input.Role,
-                PasswordLastSet = DateTime.UtcNow
-            };
-
-            await _userService.CreateAsync(newUser);
-            await _auditLogService.LogAsync(User.Identity.Name, "Zarz¹dzanie", $"Admin doda³ nowego u¿ytkownika {newUser.Username}.");
-
-            return RedirectToPage("/AdminPanel");
-        }
+        return RedirectToPage("/AdminPanel");
     }
 }

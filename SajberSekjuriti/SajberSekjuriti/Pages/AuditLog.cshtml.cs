@@ -3,91 +3,70 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using SajberSekjuriti.Services;
 using SajberSekjuriti.Model;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System;
 
-namespace SajberSekjuriti.Pages
+namespace SajberSekjuriti.Pages;
+
+public class AuditLogModel : PageModel
 {
-    public class AuditLogModel : PageModel
+    private readonly AuditLogService _auditLogService;
+
+    private const int PageSize = 100;
+
+    public IEnumerable<AuditLog> Logs { get; set; } = new List<AuditLog>();
+
+    [BindProperty(SupportsGet = true)]
+    public string? SearchUsername { get; set; }
+    [BindProperty(SupportsGet = true)]
+    public string? SearchAction { get; set; }
+    [BindProperty(SupportsGet = true)]
+    public DateTime? StartDate { get; set; }
+    [BindProperty(SupportsGet = true)]
+    public DateTime? EndDate { get; set; }
+
+    public SelectList ActionTypes { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public int CurrentPage { get; set; } = 1;
+    public int TotalPages { get; set; }
+    public int TotalItems { get; set; }
+
+    public AuditLogModel(AuditLogService auditLogService)
     {
-        private readonly AuditLogService _auditLogService;
+        _auditLogService = auditLogService;
+    }
 
-        private const int PageSize = 100;
+    public async Task OnGetAsync()
+    {
+        var distinctActions = await _auditLogService.GetDistinctActionsAsync();
+        ActionTypes = new SelectList(distinctActions.OrderBy(a => a));
 
-        public IEnumerable<AuditLog> Logs { get; set; } = new List<AuditLog>();
+        if (CurrentPage < 1) CurrentPage = 1;
 
-        [BindProperty(SupportsGet = true)]
-        public string? SearchUsername { get; set; }
-        [BindProperty(SupportsGet = true)]
-        public string? SearchAction { get; set; }
-        [BindProperty(SupportsGet = true)]
-        public DateTime? StartDate { get; set; }
-        [BindProperty(SupportsGet = true)]
-        public DateTime? EndDate { get; set; }
+        var paginatedResult = await _auditLogService.GetPaginatedFilteredLogsAsync(
+            SearchUsername,
+            SearchAction,
+            StartDate,
+            EndDate,
+            CurrentPage,
+            PageSize
+        );
 
-        public SelectList ActionTypes { get; set; }
+        Logs = paginatedResult.Logs;
+        TotalItems = (int)paginatedResult.TotalItems;
+        TotalPages = (int)Math.Ceiling(TotalItems / (double)PageSize);
 
-        [BindProperty(SupportsGet = true)]
-        public int CurrentPage { get; set; } = 1;
-        public int TotalPages { get; set; }
-        public int TotalItems { get; set; }
-
-        public AuditLogModel(AuditLogService auditLogService)
+        if (CurrentPage > TotalPages && TotalPages > 0)
         {
-            _auditLogService = auditLogService;
-        }
-
-        public async Task OnGetAsync()
-        {
-            var allLogs = await _auditLogService.GetAllLogsAsync();
-
-            var distinctActions = allLogs
-                .OrderBy(log => log.Action)
-                .Select(log => log.Action)
-                .Distinct()
-                .ToList();
-            ActionTypes = new SelectList(distinctActions);
-
-            IEnumerable<AuditLog> filteredLogs = allLogs;
-
-            if (!string.IsNullOrEmpty(SearchUsername))
-            {
-                filteredLogs = filteredLogs.Where(log =>
-                    log.Username.Contains(SearchUsername, StringComparison.OrdinalIgnoreCase));
-            }
-            if (!string.IsNullOrEmpty(SearchAction))
-            {
-                filteredLogs = filteredLogs.Where(log => log.Action == SearchAction);
-            }
-            if (StartDate.HasValue)
-            {
-                filteredLogs = filteredLogs.Where(log => log.Timestamp >= StartDate.Value);
-            }
-            if (EndDate.HasValue)
-            {
-                filteredLogs = filteredLogs.Where(log => log.Timestamp < EndDate.Value.AddDays(1));
-            }
-
-            // --- NOWA Logika Paginacji ---
-
-            // 1. Sortujemy PRZED paginacj¹
-            var sortedLogs = filteredLogs.OrderByDescending(log => log.Timestamp);
-
-            // 2. Obliczamy statystyki
-            TotalItems = sortedLogs.Count();
-            TotalPages = (int)Math.Ceiling(TotalItems / (double)PageSize);
-
-            // 3. Zabezpieczenie przed b³êdnym numerem strony w URL
-            if (CurrentPage < 1) CurrentPage = 1;
-            if (CurrentPage > TotalPages && TotalPages > 0) CurrentPage = TotalPages;
-
-            // 4. Pobieramy tylko logi dla bie¿¹cej strony
-            Logs = sortedLogs
-                .Skip((CurrentPage - 1) * PageSize) // Pomiñ logi z poprzednich stron
-                .Take(PageSize) // WeŸ 100 logów
-                .ToList();
+            CurrentPage = TotalPages;
+            paginatedResult = await _auditLogService.GetPaginatedFilteredLogsAsync(
+                SearchUsername,
+                SearchAction,
+                StartDate,
+                EndDate,
+                CurrentPage,
+                PageSize
+            );
+            Logs = paginatedResult.Logs;
         }
     }
 }

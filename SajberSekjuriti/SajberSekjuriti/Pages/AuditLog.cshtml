@@ -65,19 +65,15 @@
 {
     <div class="d-flex justify-content-between align-items-center mt-3">
 
-        @* Informacja o stronie *@
         <div>
             Strona <strong>@Model.CurrentPage</strong> z <strong>@Model.TotalPages</strong>
             (Łącznie przefiltrowanych logów: @Model.TotalItems)
         </div>
 
-        @* Przyciski Poprzednia/Następna *@
         <nav>
             <ul class="pagination mb-0">
 
-                @* Przycisk POPRZEDNIA *@
                 @{
-                    // Wyłączamy przycisk, jeśli jesteśmy na pierwszej stronie
                     var prevDisabled = Model.CurrentPage == 1 ? "disabled" : "";
                 }
                 <li class="page-item @prevDisabled">
@@ -91,9 +87,7 @@
                     </a>
                 </li>
 
-                @* Przycisk NASTĘPNA *@
                 @{
-                    // Wyłączamy przycisk, jeśli jesteśmy na ostatniej stronie
                     var nextDisabled = Model.CurrentPage == Model.TotalPages ? "disabled" : "";
                 }
                 <li class="page-item @nextDisabled">
@@ -110,4 +104,3 @@
         </nav>
     </div>
 }
-@* --- KONIEC SEKCJI PAGINACJI --- *@

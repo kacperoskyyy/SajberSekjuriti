@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
-using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using SajberSekjuriti.Model;
 using SajberSekjuriti.Services;
@@ -87,6 +86,7 @@ builder.Services.AddScoped<PasswordService>();
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddSingleton<PasswordPolicyService>();
 builder.Services.AddScoped<PasswordValidationService>();
+builder.Services.AddHttpClient<ReCaptchaService>();
 
 var app = builder.Build();
 
