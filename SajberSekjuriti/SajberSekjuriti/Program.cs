@@ -1,26 +1,91 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc.ViewFeatures; // Potrzebne do TempData
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
-using SajberSekjuriti.Model; 
+using SajberSekjuriti.Model;
 using SajberSekjuriti.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddTransient<IConfigureOptions<CookieAuthenticationOptions>, ConfigureCookieOptions>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
         options.LoginPath = "/Login";
         options.AccessDeniedPath = "/AccessDenied";
+
+        options.SlidingExpiration = true;
+
+        options.Events = new CookieAuthenticationEvents
+        {
+            OnSigningIn = async context =>
+            {
+                var policyService = context.HttpContext.RequestServices.GetRequiredService<PasswordPolicyService>();
+                var policy = await policyService.GetSettingsAsync();
+
+                if (policy.SessionTimeoutMinutes.HasValue && policy.SessionTimeoutMinutes.Value > 0)
+                {
+                    context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(policy.SessionTimeoutMinutes.Value);
+                    context.Properties.AllowRefresh = true;
+                }
+            },
+
+            OnValidatePrincipal = async context =>
+            {
+                var userService = context.HttpContext.RequestServices.GetRequiredService<UserService>();
+                var userClaim = context.Principal?.Identity?.Name;
+
+                if (userClaim == null)
+                {
+                    context.RejectPrincipal();
+                    await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    return;
+                }
+
+                var user = await userService.GetByUsernameAsync(userClaim);
+
+                if (user == null)
+                {
+                    context.RejectPrincipal();
+                    await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    return;
+                }
+
+                if (user.MustChangePassword)
+                {
+                    if (!context.Request.Path.StartsWithSegments("/ChangePassword") &&
+                        !context.Request.Path.StartsWithSegments("/Logout"))
+                    {
+                        context.Response.Redirect("/ChangePassword");
+                        return;
+                    }
+                }
+            },
+
+            // --- NOWA LOGIKA: Uruchamiana przy wylogowaniu przez timeout ---
+            OnRedirectToLogin = context =>
+            {
+                // 1. Pobieramy dostêp do TempData
+                var tempDataFactory = context.HttpContext.RequestServices.GetRequiredService<ITempDataDictionaryFactory>();
+                var tempData = tempDataFactory.GetTempData(context.HttpContext);
+
+                // 2. Czyœcimy wszystkie stare komunikaty
+                tempData.Clear();
+
+                // 3. Ustawiamy nowy, poprawny komunikat
+                // U¿ywamy klucza "OTPError", aby Login.cshtml.cs go przechwyci³
+                tempData["OTPError"] = "Sesja wygas³a. Proszê zalogowaæ siê ponownie.";
+
+                // 4. Kontynuujemy przekierowanie
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            }
+        };
     });
 
-// Add services to the container.
 builder.Services.AddRazorPages();
 
-// Konfiguracja MongoDB
 builder.Services.AddSingleton<IMongoClient>(s => new MongoClient(builder.Configuration["MongoDbSettings:ConnectionString"]));
-// Wstrzykniecie serwisów 
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<PasswordService>();
 builder.Services.AddScoped<AuditLogService>();
@@ -29,7 +94,6 @@ builder.Services.AddScoped<PasswordValidationService>();
 
 var app = builder.Build();
 
-// Tworzenie domyœlnego admina
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -45,14 +109,12 @@ using (var scope = app.Services.CreateScope())
             PasswordHash = passwordService.HashPassword("Admin123!"),
             Role = UserRole.Admin,
             PasswordLastSet = DateTime.UtcNow,
-            MustChangePassword = true
+            MustChangePassword = false
         };
         await usersService.CreateAsync(newAdmin);
         Console.WriteLine("Stworzono konto admina.");
     }
 }
-
-// Tworzenie domyœlnych ustawieñ polityki hase³
 
 using (var scope = app.Services.CreateScope())
 {
@@ -76,11 +138,9 @@ using (var scope = app.Services.CreateScope())
     Console.WriteLine("Ustawienia polityki hase³ zosta³y utworzone.");
 }
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
