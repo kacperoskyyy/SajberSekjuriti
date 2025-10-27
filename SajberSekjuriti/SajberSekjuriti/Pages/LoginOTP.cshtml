@@ -13,7 +13,6 @@
 
             <p>Twoje konto wymaga dodatkowej weryfikacji. Oblicz hasło jednorazowe na podstawie wzoru:</p>
 
-            @* ZAKTUALIZOWANE INSTRUKCJE *@
             <div class="alert alert-info">
                 <h5 class="alert-heading">Wzór: <code>lg(a * x)</code></h5>
                 <p class="mb-0">Gdzie:</p>
@@ -23,7 +22,7 @@
                 </ul>
                 <hr>
                 <p class="mb-0">
-                    Oblicz, a następnie <strong>zaokrąglij wynik do 2 miejsc po przecinku</strong>.
+                    Oblicz <code>lg(a * x)</code>, a następnie <strong>zaokrąglij wynik do 2 miejsc po przecinku</strong>.
                 </p>
                 <p class="small fst-italic">
                     <strong>Ważne:</strong> Użyj kropki (<code>.</code>) jako separatora dziesiętnego.
@@ -43,10 +42,11 @@
                 }
 
                 <input type="hidden" asp-for="Input.Username" />
+                <input type="hidden" asp-for="Input.LoginLengthA" />
+                <input type="hidden" asp-for="Input.RandomNumberX" />
 
                 <div class="form-floating mb-3">
                     <input asp-for="Input.OTPCode" class="form-control" autocomplete="off" autofocus />
-                    @* Zmieniona etykieta pasująca do InputModel *@
                     <label asp-for="Input.OTPCode"></label>
                     <span asp-validation-for="Input.OTPCode" class="text-danger"></span>
                 </div>
