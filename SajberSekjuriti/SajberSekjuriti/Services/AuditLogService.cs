@@ -1,8 +1,14 @@
 ﻿using MongoDB.Driver;
+using MongoDB.Bson;
 using SajberSekjuriti.Model;
-using SajberSekjuriti.Pages;
 
 namespace SajberSekjuriti.Services;
+
+public class PaginatedLogResult
+{
+    public List<AuditLog> Logs { get; set; } = new List<AuditLog>();
+    public long TotalItems { get; set; }
+}
 
 public class AuditLogService
 {
@@ -17,7 +23,6 @@ public class AuditLogService
         var database = client.GetDatabase(dbName);
         _logsCollection = database.GetCollection<AuditLog>(collectionName);
     }
-
 
     public async Task LogAsync(string username, string action, string description)
     {
@@ -39,15 +44,47 @@ public class AuditLogService
         await _logsCollection.InsertOneAsync(logEntry);
     }
 
-    public async Task<List<AuditLog>> GetAllLogsAsync()
+    public async Task<PaginatedLogResult> GetPaginatedFilteredLogsAsync(
+        string? searchUsername,
+        string? searchAction,
+        DateTime? startDate,
+        DateTime? endDate,
+        int currentPage,
+        int pageSize)
     {
-        return await _logsCollection.Find(_ => true)
-                                    .SortByDescending(log => log.Timestamp)
-                                    .ToListAsync();
+        var filterBuilder = Builders<AuditLog>.Filter;
+        var filter = filterBuilder.Empty;
+
+        if (!string.IsNullOrEmpty(searchUsername))
+        {
+            filter &= filterBuilder.Regex(log => log.Username, new BsonRegularExpression(searchUsername, "i"));
+        }
+        if (!string.IsNullOrEmpty(searchAction))
+        {
+            filter &= filterBuilder.Eq(log => log.Action, searchAction);
+        }
+        if (startDate.HasValue)
+        {
+            filter &= filterBuilder.Gte(log => log.Timestamp, startDate.Value);
+        }
+        if (endDate.HasValue)
+        {
+            filter &= filterBuilder.Lt(log => log.Timestamp, endDate.Value.AddDays(1));
+        }
+
+        var totalItems = await _logsCollection.CountDocumentsAsync(filter);
+
+        var logs = await _logsCollection.Find(filter)
+            .SortByDescending(log => log.Timestamp)
+            .Skip((currentPage - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync();
+
+        return new PaginatedLogResult { Logs = logs, TotalItems = totalItems };
     }
 
-    public static implicit operator AuditLogService(AuditLogModel v)
+    public async Task<List<string>> GetDistinctActionsAsync()
     {
-        throw new NotImplementedException();
+        return await _logsCollection.Distinct(log => log.Action, Builders<AuditLog>.Filter.Empty).ToListAsync();
     }
 }
