@@ -2,53 +2,52 @@
 using SajberSekjuriti.Model;
 using SajberSekjuriti.Pages;
 
-namespace SajberSekjuriti.Services
+namespace SajberSekjuriti.Services;
+
+public class AuditLogService
 {
-    public class AuditLogService
+    private readonly IMongoCollection<AuditLog> _logsCollection;
+    private readonly PasswordPolicyService _policyService;
+
+    public AuditLogService(IMongoClient client, IConfiguration config, PasswordPolicyService policyService)
     {
-        private readonly IMongoCollection<AuditLog> _logsCollection;
-        private readonly PasswordPolicyService _policyService;
+        _policyService = policyService;
+        var dbName = config["MongoDbSettings:DatabaseName"];
+        var collectionName = "audit_logs";
+        var database = client.GetDatabase(dbName);
+        _logsCollection = database.GetCollection<AuditLog>(collectionName);
+    }
 
-        public AuditLogService(IMongoClient client, IConfiguration config, PasswordPolicyService policyService)
+
+    public async Task LogAsync(string username, string action, string description)
+    {
+        var policy = await _policyService.GetSettingsAsync();
+
+        if (!policy.EnableAuditLog)
         {
-            _policyService = policyService;
-            var dbName = config["MongoDbSettings:DatabaseName"];
-            var collectionName = "audit_logs";
-            var database = client.GetDatabase(dbName);
-            _logsCollection = database.GetCollection<AuditLog>(collectionName);
+            return;
         }
 
-
-        public async Task LogAsync(string username, string action, string description)
+        var logEntry = new AuditLog
         {
-            var policy = await _policyService.GetSettingsAsync();
+            Username = username,
+            Timestamp = DateTime.UtcNow,
+            Action = action,
+            Description = description
+        };
 
-            if (!policy.EnableAuditLog)
-            {
-                return;
-            }
+        await _logsCollection.InsertOneAsync(logEntry);
+    }
 
-            var logEntry = new AuditLog
-            {
-                Username = username,
-                Timestamp = DateTime.UtcNow,
-                Action = action,
-                Description = description
-            };
+    public async Task<List<AuditLog>> GetAllLogsAsync()
+    {
+        return await _logsCollection.Find(_ => true)
+                                    .SortByDescending(log => log.Timestamp)
+                                    .ToListAsync();
+    }
 
-            await _logsCollection.InsertOneAsync(logEntry);
-        }
-
-        public async Task<List<AuditLog>> GetAllLogsAsync()
-        {
-            return await _logsCollection.Find(_ => true)
-                                        .SortByDescending(log => log.Timestamp)
-                                        .ToListAsync();
-        }
-
-        public static implicit operator AuditLogService(AuditLogModel v)
-        {
-            throw new NotImplementedException();
-        }
+    public static implicit operator AuditLogService(AuditLogModel v)
+    {
+        throw new NotImplementedException();
     }
 }

@@ -2,8 +2,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using MongoDB.Driver.Linq;
-using SajberSekjuriti.Model;
 using SajberSekjuriti.Services;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
@@ -30,8 +28,6 @@ public class LoginModel : PageModel
     public InputModel Input { get; set; } = new();
 
     public string? ErrorMessage { get; set; }
-
-    // W³aœciwoœæ do wyœwietlenia kodu CAPTCHA w widoku
     public string CaptchaCode { get; set; }
 
     public class InputModel
