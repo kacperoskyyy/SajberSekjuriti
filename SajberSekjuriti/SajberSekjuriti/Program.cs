@@ -7,6 +7,9 @@ using SajberSekjuriti.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Register code pages encoding provider for non-UTF8 encodings (e.g., ISO-8859-1)
+System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -61,19 +64,26 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
                 }
             },
 
-            OnRedirectToLogin = context =>
+            OnRedirectToLogin = async context =>
             {
                 var tempDataFactory = context.HttpContext.RequestServices.GetRequiredService<ITempDataDictionaryFactory>();
                 var tempData = tempDataFactory.GetTempData(context.HttpContext);
                 var _auditLogService = context.HttpContext.RequestServices.GetRequiredService<AuditLogService>();
 
                 tempData.Clear();
-
                 tempData["OTPError"] = "Sesja wygas³a. Proszê zalogowaæ siê ponownie.";
 
                 context.Response.Redirect(context.RedirectUri);
-                _auditLogService.LogAsync("Nieznany", "Wygaœniêcie sesji", "Sesja u¿ytkownika wygas³a podczas logowania OTP.").Wait();
-                return Task.CompletedTask;
+
+                // Avoid blocking/throwing here
+                try
+                {
+                    await _auditLogService.LogAsync("Nieznany", "Wygaœniêcie sesji", "Sesja u¿ytkownika wygas³a podczas logowania OTP.");
+                }
+                catch
+                {
+                    // Swallow logging failures to prevent process crash
+                }
             }
         };
     });
@@ -87,6 +97,7 @@ builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddSingleton<PasswordPolicyService>();
 builder.Services.AddScoped<PasswordValidationService>();
 builder.Services.AddHttpClient<ReCaptchaService>();
+builder.Services.AddScoped<VigenereCipherService>();
 
 var app = builder.Build();
 
@@ -129,9 +140,14 @@ using (var scope = app.Services.CreateScope())
             MinimumLength = 8,
             PasswordExpirationDays = 0
         };
+        await ppService.SaveSettingsAsync(defaultSettings);
+        Console.WriteLine("Ustawienia polityki hase³ zosta³y utworzone.");
     }
-    await ppService.SaveSettingsAsync(settings);
-    Console.WriteLine("Ustawienia polityki hase³ zosta³y utworzone.");
+    else
+    {
+        // Ensure existing settings are persisted/normalized as needed
+        await ppService.SaveSettingsAsync(settings);
+    }
 }
 
 if (!app.Environment.IsDevelopment())

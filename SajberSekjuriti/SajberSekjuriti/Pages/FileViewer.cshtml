@@ -1,0 +1,71 @@
+﻿@page
+@model SajberSekjuriti.Pages.FileViewerModel
+@{
+    ViewData["Title"] = "Otwieranie Plików";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="row">
+    <div class="col-md-7">
+        <form method="post" enctype="multipart/form-data">
+
+            @if (!Model.IsUnlocked)
+            {
+                <div class="alert alert-warning">
+                    <strong>Tryb DEMOWARE:</strong> Ograniczenie do otwierania tylko plików <code>.txt</code>.
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-success">
+                    <strong>Pełna wersja:</strong> Możesz otwierać pliki <code>.txt</code>, <code>.docx</code> i <code>.pdf</code>.
+                </div>
+            }
+
+            @if (Model.ErrorMessage != null)
+            {
+                <div class="alert alert-danger">@Model.ErrorMessage</div>
+            }
+
+            <div class="mb-3">
+                <label for="fileUpload" class="form-label">Wybierz plik do otwarcia:</label>
+                <input type="file" name="file" class="form-control" id="fileUpload" />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Otwórz plik</button>
+                <a asp-page="/Index" class="btn btn-secondary">Wróć</a>
+            </div>
+        </form>
+
+        @if (Model.FileContent != null)
+        {
+            <hr />
+            <h4>Zawartość pliku: <code>@Model.FileName</code></h4>
+            <pre class="border bg-light p-3" style="max-height: 400px; overflow-y: auto;">@Model.FileContent</pre>
+        }
+    </div>
+
+    @if (!Model.IsUnlocked)
+    {
+        <div class="col-md-5">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title">Odblokuj pełną wersję</h5>
+                    <p class="card-text">Wprowadź klucz licencyjny, aby usunąć ograniczenie.</p>
+                    <form method="post">
+                        <div class="input-group">
+                            <input type="text" asp-for="LicenseKey" class="form-control" placeholder="Twój klucz licencyjny..." />
+                            <button type="submit" class="btn btn-success" asp-page-handler="Unlock">Odblokuj</button>
+                        </div>
+                        @if (Model.LicenseErrorMessage != null)
+                        {
+                            <div class="text-danger small mt-2">@Model.LicenseErrorMessage</div>
+                        }
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+</div>
