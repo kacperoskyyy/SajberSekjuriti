@@ -89,4 +89,32 @@ public class AdminPanelModel : PageModel
 
         return RedirectToPage();
     }
+
+    public async Task<IActionResult> OnPostEnableFileViewer(string id)
+    {
+        var user = await _userService.GetByIdAsync(id);
+
+        if (user != null)
+        {
+            user.IsFileViewerUnlocked = true;
+            await _userService.UpdateAsync(user);
+            await _auditLogService.LogAsync(User.Identity.Name, "W³¹czono Wyœwietlanie plików", $"Admin w³¹czy³ File Viewer dla u¿ytkownika {user.Username}.");
+        }
+
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostDisableFileViewer(string id)
+    {
+        var user = await _userService.GetByIdAsync(id);
+
+        if (user != null)
+        {
+            user.IsFileViewerUnlocked = false;
+            await _userService.UpdateAsync(user);
+            await _auditLogService.LogAsync(User.Identity.Name, "Wy³¹czono wyœwietlanie plików", $"Admin wy³¹czy³ File Viewer dla u¿ytkownika {user.Username}.");
+        }
+
+        return RedirectToPage();
+    }
 }

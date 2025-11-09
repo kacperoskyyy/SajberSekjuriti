@@ -81,6 +81,20 @@
                                 <button type="submit" class="btn btn-sm btn-warning">OTP Enable</button>
                             </form>
                         }
+                        @if (user.IsFileViewerUnlocked)
+                        {
+                            <form method="post" asp-page-handler="DisableFileViewer">
+                                <input type="hidden" name="id" value="@user.Id" />
+                                <button type="submit" class="btn btn-sm btn-success">File Viewer Disable</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form method="post" asp-page-handler="EnableFileViewer">
+                                <input type="hidden" name="id" value="@user.Id" />
+                                <button type="submit" class="btn btn-sm btn-warning">File Viewer Enable</button>
+                            </form>
+                        }
 
                     </div>
                 </td>

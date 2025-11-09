@@ -22,5 +22,6 @@ public class User
     public int FailedLoginAttempts { get; set; } = 0;
     public DateTime? LockoutEndDate { get; set; }
     public bool IsOneTimePasswordEnabled { get; set; } = false;
+    public bool IsFileViewerUnlocked { get; set; } = false;
 }
 public enum UserRole { Admin, SuperUser, User }
