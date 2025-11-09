@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+Ôªøusing Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SajberSekjuriti.Model;
@@ -12,6 +12,8 @@ using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser.Listener;
 using iText.Kernel.Pdf.Canvas.Parser;
 using Microsoft.Extensions.Logging;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace SajberSekjuriti.Pages
 {
@@ -24,7 +26,7 @@ namespace SajberSekjuriti.Pages
         private readonly ILogger<FileViewerModel> _logger;
 
         private const string VIGENERE_MASTER_KEY = "SAJBERSEKJURITI";
-        private const int MaxPreviewChars = 8192;           // max znakÛw do podglπdu
+        private const int MaxPreviewChars = 8192;           // max znak√≥w do podglƒÖdu
         private const long MaxFileSizeBytes = 10L * 1024 * 1024; // 10 MB
 
         public FileViewerModel(UserService userService,
@@ -46,16 +48,17 @@ namespace SajberSekjuriti.Pages
 
         [BindProperty]
         public string? LicenseKey { get; set; }
+        public IFormFile? UploadedFile { get; set; }
 
         private async Task<User> GetCurrentUserAsync()
         {
             var username = User?.Identity?.Name;
             if (string.IsNullOrEmpty(username))
             {
-                _logger.LogWarning("[{TraceId}] Brak uwierzytelnionego uøytkownika podczas prÛby pobrania danych.", HttpContext.TraceIdentifier);
-                throw new InvalidOperationException("Brak uwierzytelnionego uøytkownika.");
+                _logger.LogWarning("[{TraceId}] Brak uwierzytelnionego u≈ºytkownika podczas pr√≥by pobrania danych.", HttpContext.TraceIdentifier);
+                throw new InvalidOperationException("Brak uwierzytelnionego u≈ºytkownika.");
             }
-            _logger.LogDebug("[{TraceId}] Pobieranie uøytkownika: {Username}", HttpContext.TraceIdentifier, username);
+            _logger.LogDebug("[{TraceId}] Pobieranie u≈ºytkownika: {Username}", HttpContext.TraceIdentifier, username);
             return await _userService.GetByUsernameAsync(username);
         }
 
@@ -83,7 +86,7 @@ namespace SajberSekjuriti.Pages
 
             var user = await GetCurrentUserAsync();
             IsUnlocked = user.IsFileViewerUnlocked;
-            _logger.LogInformation("Uøytkownik: {Username}, Odblokowany: {IsUnlocked}", user.Username, IsUnlocked);
+            _logger.LogInformation("U≈ºytkownik: {Username}, Odblokowany: {IsUnlocked}", user.Username, IsUnlocked);
 
             if (file == null)
             {
@@ -105,9 +108,9 @@ namespace SajberSekjuriti.Pages
 
             if (file.Length > MaxFileSizeBytes)
             {
-                ErrorMessage = $"B£•D: Plik jest zbyt duøy. Maksymalny rozmiar to {MaxFileSizeBytes / (1024 * 1024)} MB.";
-                _logger.LogWarning("Plik za duøy: {FileName} ({Length} B)", FileName, file.Length);
-                try { await _auditLogService.LogAsync(user.Username, "Otwieranie pliku", $"Nieudana prÛba (Plik za duøy): {file.FileName}."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≥πd logowania audytu (za duøy plik)"); }
+                ErrorMessage = $"B≈ÅƒÑD: Plik jest zbyt du≈ºy. Maksymalny rozmiar to {MaxFileSizeBytes / (1024 * 1024)} MB.";
+                _logger.LogWarning("Plik za du≈ºy: {FileName} ({Length} B)", FileName, file.Length);
+                try { await _auditLogService.LogAsync(user.Username, "Otwieranie pliku", $"Nieudana pr√≥ba (Plik za du≈ºy): {file.FileName}."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≈ÇƒÖd logowania audytu (za du≈ºy plik)"); }
                 return Page();
             }
 
@@ -119,33 +122,33 @@ namespace SajberSekjuriti.Pages
                     case ".txt":
                     case ".log":
                     case ".csv":
-                        _logger.LogInformation("åcieøka tekstowa (.txt/.log/.csv)");
+                        _logger.LogInformation("≈öcie≈ºka tekstowa (.txt/.log/.csv)");
                         FileContent = await ReadTextFileAsync(file, MaxPreviewChars);
                         break;
 
-                    //case ".docx" when IsUnlocked:
-                    //    _logger.LogInformation("åcieøka .docx (odblokowana)");
-                    //    FileContent = ReadDocxFile(file);
-                    //    break;
+                    case ".docx" when IsUnlocked:
+                        _logger.LogInformation("≈öcie≈ºka .docx (odblokowana)");
+                        FileContent = ReadDocxFile(file);
+                        break;
 
-                    //case ".pdf" when IsUnlocked:
-                    //    _logger.LogInformation("åcieøka .pdf (odblokowana)");
-                    //    FileContent = ReadPdfFile(file);
-                    //    break;
+                    case ".pdf" when IsUnlocked:
+                        _logger.LogInformation("≈öcie≈ºka .pdf (odblokowana)");
+                        FileContent = ReadPdfFile(file);
+                        break;
 
                     default:
-                        _logger.LogWarning("Nieobs≥ugiwane rozszerzenie lub tryb DEMO: {Extension}", extension);
+                        _logger.LogWarning("Nieobs≈Çugiwane rozszerzenie lub tryb DEMO: {Extension}", extension);
                         if (!IsUnlocked && extension != ".txt")
                         {
-                            ErrorMessage = "DEMOWARE: Moøna otwieraÊ tylko pliki w formacie .TXT.";
-                            try { await _auditLogService.LogAsync(user.Username, "Otwieranie pliku", $"Nieudana prÛba (DEMO): Plik {file.FileName} zablokowany."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≥πd logowania audytu (DEMO)"); }
+                            ErrorMessage = "DEMOWARE: Mo≈ºna otwieraƒá tylko pliki w formacie .TXT.";
+                            try { await _auditLogService.LogAsync(user.Username, "Otwieranie pliku", $"Nieudana pr√≥ba (DEMO): Plik {file.FileName} zablokowany."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≈ÇƒÖd logowania audytu (DEMO)"); }
                             return Page();
                         }
                         if (IsUnlocked)
                         {
-                            ErrorMessage = $"Plik '{file.FileName}' zosta≥ poprawnie przes≥any, ale typ pliku '{extension}' nie jest obs≥ugiwany do podglπdu.";
-                            FileContent = "[Plik binarny lub nieobs≥ugiwany]";
-                            try { await _auditLogService.LogAsync(user.Username, "Otwieranie pliku", $"Pomyúlnie otwarto (bez podglπdu): {file.FileName}."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≥πd logowania audytu (nieobs≥ugiwany)"); }
+                            ErrorMessage = $"Plik '{file.FileName}' zosta≈Ç poprawnie przes≈Çany, ale typ pliku '{extension}' nie jest obs≈Çugiwany do podglƒÖdu.";
+                            FileContent = "[Plik binarny lub nieobs≈Çugiwany]";
+                            try { await _auditLogService.LogAsync(user.Username, "Otwieranie pliku", $"Pomy≈õlnie otwarto (bez podglƒÖdu): {file.FileName}."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≈ÇƒÖd logowania audytu (nieobs≈Çugiwany)"); }
                         }
                         return Page();
                 }
@@ -154,12 +157,12 @@ namespace SajberSekjuriti.Pages
                 {
                     if (FileContent.Length > MaxPreviewChars)
                     {
-                        _logger.LogInformation("Podglπd obciÍty do {MaxPreviewChars} znakÛw (oryginalnie {Length})", MaxPreviewChars, FileContent.Length);
-                        FileContent = FileContent.Substring(0, MaxPreviewChars) + "\n\n[... Plik zosta≥ obciÍty (wyúwietlono pierwsze 8KB) ...]";
+                        _logger.LogInformation("PodglƒÖd obciƒôty do {MaxPreviewChars} znak√≥w (oryginalnie {Length})", MaxPreviewChars, FileContent.Length);
+                        FileContent = FileContent.Substring(0, MaxPreviewChars) + "\n\n[... Plik zosta≈Ç obciƒôty (wy≈õwietlono pierwsze 8KB) ...]";
                     }
                     else
                     {
-                        _logger.LogDebug("D≥ugoúÊ wczytanego podglπdu: {Length}", FileContent.Length);
+                        _logger.LogDebug("D≈Çugo≈õƒá wczytanego podglƒÖdu: {Length}", FileContent.Length);
                     }
                 }
                 else
@@ -167,14 +170,14 @@ namespace SajberSekjuriti.Pages
                     _logger.LogDebug("FileContent == null po odczycie");
                 }
 
-                _logger.LogInformation("Pomyúlnie przetworzono plik.");
-                try { await _auditLogService.LogAsync(user.Username, "Otwieranie pliku", $"Pomyúlnie otwarto podglπd pliku: {file.FileName}."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≥πd logowania audytu (sukces)"); }
+                _logger.LogInformation("Pomy≈õlnie przetworzono plik.");
+                try { await _auditLogService.LogAsync(user.Username, "Otwieranie pliku", $"Pomy≈õlnie otwarto podglƒÖd pliku: {file.FileName}."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≈ÇƒÖd logowania audytu (sukces)"); }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "KRYTYCZNY B£•D podczas przetwarzania pliku {FileName} (ext={Extension}, size={Size})", FileName, extension, file.Length);
-                ErrorMessage = $"B≥πd podczas przetwarzania pliku: {ex.Message}";
-                try { await _auditLogService.LogAsync(user.Username, "B≥πd otwierania", $"B≥πd pliku {file.FileName}: {ex.Message}."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≥πd logowania audytu (wyjπtek)"); }
+                _logger.LogError(ex, "KRYTYCZNY B≈ÅƒÑD podczas przetwarzania pliku {FileName} (ext={Extension}, size={Size})", FileName, extension, file.Length);
+                ErrorMessage = $"B≈ÇƒÖd podczas przetwarzania pliku: {ex.Message}";
+                try { await _auditLogService.LogAsync(user.Username, "B≈ÇƒÖd otwierania", $"B≈ÇƒÖd pliku {file.FileName}: {ex.Message}."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≈ÇƒÖd logowania audytu (wyjƒÖtek)"); }
             }
             finally
             {
@@ -194,34 +197,34 @@ namespace SajberSekjuriti.Pages
 
             try
             {
-                _logger.LogInformation("PrÛba odczytu jako UTF-8 (BOM detection w≥πczony)");
+                _logger.LogInformation("Pr√≥ba odczytu jako UTF-8 (BOM detection w≈ÇƒÖczony)");
                 using (var stream = file.OpenReadStream())
                 using (var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
                 {
                     charsRead = await reader.ReadAsync(buffer, 0, buffer.Length);
-                    _logger.LogInformation("UTF-8: odczytano {CharsRead} znakÛw", charsRead);
+                    _logger.LogInformation("UTF-8: odczytano {CharsRead} znak√≥w", charsRead);
                     return new string(buffer, 0, charsRead);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Odczyt jako UTF-8 nie powiÛd≥ siÍ. PrÛba jako ISO-8859-1 (Latin1)");
+                _logger.LogWarning(ex, "Odczyt jako UTF-8 nie powi√≥d≈Ç siƒô. Pr√≥ba jako ISO-8859-1 (Latin1)");
                 try
                 {
-                    _logger.LogInformation("PrÛba odczytu jako ISO-8859-1");
+                    _logger.LogInformation("Pr√≥ba odczytu jako ISO-8859-1");
                     var fallbackEncoding = Encoding.GetEncoding("ISO-8859-1");
                     using (var stream = file.OpenReadStream())
                     using (var reader = new StreamReader(stream, fallbackEncoding, detectEncodingFromByteOrderMarks: false))
                     {
                         charsRead = await reader.ReadAsync(buffer, 0, buffer.Length);
-                        _logger.LogInformation("ISO-8859-1: odczytano {CharsRead} znakÛw", charsRead);
+                        _logger.LogInformation("ISO-8859-1: odczytano {CharsRead} znak√≥w", charsRead);
                         return new string(buffer, 0, charsRead);
                     }
                 }
                 catch (Exception fallbackEx)
                 {
-                    _logger.LogError(fallbackEx, "Odczyt jako ISO-8859-1 rÛwnieø nie powiÛd≥ siÍ");
-                    throw new Exception("Nie moøna by≥o odczytaÊ pliku ani jako UTF-8, ani jako kodowanie zapasowe.", fallbackEx);
+                    _logger.LogError(fallbackEx, "Odczyt jako ISO-8859-1 r√≥wnie≈º nie powi√≥d≈Ç siƒô");
+                    throw new Exception("Nie mo≈ºna by≈Ço odczytaƒá pliku ani jako UTF-8, ani jako kodowanie zapasowe.", fallbackEx);
                 }
             }
         }
@@ -233,17 +236,30 @@ namespace SajberSekjuriti.Pages
             {
                 _logger.LogInformation("Odczytywanie pliku .docx: {FileName}", file.FileName);
                 using (var stream = file.OpenReadStream())
-                using (var doc = DocX.Load(stream))
+                using (var doc = WordprocessingDocument.Open(stream, false))
                 {
-                    var text = doc.Text ?? string.Empty;
-                    _logger.LogDebug(".docx: d≥ugoúÊ tekstu={Length}", text.Length);
-                    return text;
+                    var body = doc.MainDocumentPart?.Document?.Body;
+                    if (body == null) return "[Pusty dokument]";
+
+                    var sb = new StringBuilder();
+                    foreach (var para in body.Elements<Paragraph>())
+                    {
+                        foreach (var run in para.Elements<Run>())
+                        {
+                            foreach (var text in run.Elements<Text>())
+                            {
+                                sb.Append(text.Text);
+                            }
+                        }
+                        sb.AppendLine();
+                    }
+                    return sb.ToString();
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "B≥πd odczytu .docx");
-                return "[B£•D: Nie moøna odczytaÊ pliku .docx. Moøe byÊ uszkodzony lub w starym formacie .doc]";
+                _logger.LogWarning(ex, "B≈ÇƒÖd odczytu .docx");
+                return "[B≈ÅƒÑD: Nie mo≈ºna odczytaƒá pliku .docx. Mo≈ºe byƒá uszkodzony lub w starym formacie .doc]";
             }
         }
 
@@ -267,13 +283,13 @@ namespace SajberSekjuriti.Pages
                     }
                 }
                 var text = sb.ToString();
-                _logger.LogDebug(".pdf: d≥ugoúÊ tekstu={Length}", text.Length);
+                _logger.LogDebug(".pdf: d≈Çugo≈õƒá tekstu={Length}", text.Length);
                 return text;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "B≥πd odczytu .pdf");
-                return "[B£•D: Nie moøna odczytaÊ pliku .pdf. Plik moøe byÊ obrazem lub byÊ uszkodzony.]";
+                _logger.LogWarning(ex, "B≈ÇƒÖd odczytu .pdf");
+                return "[B≈ÅƒÑD: Nie mo≈ºna odczytaƒá pliku .pdf. Plik mo≈ºe byƒá obrazem lub byƒá uszkodzony.]";
             }
         }
 
@@ -289,27 +305,27 @@ namespace SajberSekjuriti.Pages
 
             if (string.IsNullOrEmpty(LicenseKey))
             {
-                LicenseErrorMessage = "Klucz nie moøe byÊ pusty.";
-                _logger.LogWarning("PrÛba odblokowania pustym kluczem");
+                LicenseErrorMessage = "Klucz nie mo≈ºe byƒá pusty.";
+                _logger.LogWarning("Pr√≥ba odblokowania pustym kluczem");
                 return Page();
             }
 
-            _logger.LogInformation("PrÛba odszyfrowania klucza dla uøytkownika: {Username}", user.Username);
+            _logger.LogInformation("Pr√≥ba odszyfrowania klucza dla u≈ºytkownika: {Username}", user.Username);
             string decryptedKey = _vigenereService.Decrypt(LicenseKey, VIGENERE_MASTER_KEY);
-            _logger.LogDebug("D≥ugoúÊ odszyfrowanego klucza: {Len}", decryptedKey?.Length);
+            _logger.LogDebug("D≈Çugo≈õƒá odszyfrowanego klucza: {Len}", decryptedKey?.Length);
 
             if (decryptedKey == user.Username.ToUpper())
             {
                 _logger.LogInformation("Klucz poprawny. Odblokowywanie funkcji.");
                 user.IsFileViewerUnlocked = true;
                 await _userService.UpdateAsync(user);
-                try { await _auditLogService.LogAsync(user.Username, "Odblokowano licencjÍ", "Uøytkownik odblokowa≥ funkcjÍ FileViewer."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≥πd logowania audytu (odblokowanie)"); }
+                try { await _auditLogService.LogAsync(user.Username, "Odblokowano licencjƒô", "U≈ºytkownik odblokowa≈Ç funkcjƒô FileViewer."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≈ÇƒÖd logowania audytu (odblokowanie)"); }
             }
             else
             {
-                _logger.LogWarning("Niepoprawny klucz licencyjny dla uøytkownika: {Username}", user.Username);
+                _logger.LogWarning("Niepoprawny klucz licencyjny dla u≈ºytkownika: {Username}", user.Username);
                 LicenseErrorMessage = "Niepoprawny klucz licencyjny.";
-                try { await _auditLogService.LogAsync(user.Username, "B≥Ídny klucz", "Nieudana prÛba odblokowania licencji."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≥πd logowania audytu (b≥Ídny klucz)"); }
+                try { await _auditLogService.LogAsync(user.Username, "B≈Çƒôdny klucz", "Nieudana pr√≥ba odblokowania licencji."); } catch (Exception logEx) { _logger.LogDebug(logEx, "B≈ÇƒÖd logowania audytu (b≈Çƒôdny klucz)"); }
             }
 
             sw.Stop();
