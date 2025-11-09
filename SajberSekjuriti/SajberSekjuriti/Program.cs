@@ -148,6 +148,18 @@ using (var scope = app.Services.CreateScope())
         // Ensure existing settings are persisted/normalized as needed
         await ppService.SaveSettingsAsync(settings);
     }
+
+
+    // Dodanie fa³szywego logu (honeytoken) do bazy danych, jeœli jeszcze nie istnieje
+    var auditService = services.GetRequiredService<AuditLogService>();
+    var existingLogs = await auditService.GetPaginatedFilteredLogsAsync(null, "B³¹d systemu", null, null, 1, 1);
+    if (existingLogs.TotalItems == 0)
+    {
+        await auditService.LogAsync("SYSTEM", "B³¹d systemu",                            //DNS TOKEN jako serwer backup
+            "Nieudany backup. Zrzut: /wwwroot/uploads/Has³a_u¿ytkowników.docx. Serwer backupu: tv63wntaetjsm38bhcrytf1m0.canarytokens.com");
+
+        Console.WriteLine("Dodano fa³szywy log (honeytoken) do bazy.");
+    }
 }
 
 if (!app.Environment.IsDevelopment())
